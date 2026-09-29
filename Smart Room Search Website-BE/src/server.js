@@ -286,6 +286,11 @@ app.get('/api/rooms/stats', authenticate, requireAdmin, stats);
 
 app.get('/api/rooms', cacheRoomsMiddleware(), listRooms);
 
+import { getRoomReviews, createRoomReview } from './controllers/reviewController.js';
+
+app.get('/api/rooms/:id/reviews', getRoomReviews);
+app.post('/api/rooms/:id/reviews', createRoomReview);
+
 app.get('/api/rooms/:id', getRoom);
 
 app.post(

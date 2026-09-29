@@ -55,6 +55,15 @@ data class FavoriteRoom(
     val imageUrl: String?
 )
 
+data class RoomReview(
+    val id: Long = System.currentTimeMillis(),
+    @SerializedName("room_id") val roomId: Int,
+    val author: String = "Người dùng ẩn danh",
+    val rating: Int = 5,
+    val comment: String,
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
 data class Tenant(
     val id: Int,
     @SerializedName("room_id") val roomId: Int,

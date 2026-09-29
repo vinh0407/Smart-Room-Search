@@ -48,6 +48,7 @@ fun AppMain(viewModel: MainViewModel) {
     val items = listOf(
         Screen.Home,
         Screen.Rooms,
+        Screen.NearbyMap,
         Screen.Demands,
         Screen.Admin
     )
@@ -88,6 +89,11 @@ fun AppMain(viewModel: MainViewModel) {
             }
             composable(Screen.Rooms.route) {
                 RoomsScreen(viewModel) { roomId ->
+                    navController.navigate("detail/$roomId")
+                }
+            }
+            composable(Screen.NearbyMap.route) {
+                NearbyMapScreen(viewModel) { roomId ->
                     navController.navigate("detail/$roomId")
                 }
             }
@@ -133,6 +139,7 @@ fun AppMain(viewModel: MainViewModel) {
 sealed class Screen(val route: String, val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Home : Screen("home", "Trang chủ", Icons.Default.Home)
     object Rooms : Screen("rooms", "Phòng", Icons.Default.Search)
+    object NearbyMap : Screen("nearby_map", "Bản đồ", Icons.Default.Place)
     object Demands : Screen("demands", "Nhu cầu", Icons.Default.List)
     object Admin : Screen("admin", "Admin", Icons.Default.Person)
 }

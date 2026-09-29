@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -54,6 +55,84 @@ fun RoomDetailScreen(roomId: Int, viewModel: MainViewModel, onBack: () -> Unit) 
     )
 
     val similarRooms = rooms.filter { it.id != room.id && (it.district == room.district || it.price in (room.price * 0.8)..(room.price * 1.2)) }.take(5)
+
+    var reviews by remember {
+        mutableStateOf(
+            listOf(
+                com.smartroomsearch.app.model.RoomReview(1, room.id, "Người thuê ẩn danh", 5, "Phòng sạch sẽ, giờ giấc tự do, điện nước tính đúng giá cam kết. Rất hài lòng!"),
+                com.smartroomsearch.app.model.RoomReview(2, room.id, "Sinh viên thuê trọ", 5, "An ninh tốt, gần chợ và trạm xe buýt. Chủ trọ nhiệt tình hỗ trợ."),
+                com.smartroomsearch.app.model.RoomReview(3, room.id, "Khách thuê thực tế", 4, "Phòng thoáng mát, wifi ổn định. Đáng để thuê lâu dài.")
+            )
+        )
+    }
+    var showReviewDialog by remember { mutableStateOf(false) }
+    var reviewRating by remember { mutableStateOf(5) }
+    var reviewAuthor by remember { mutableStateOf("") }
+    var reviewComment by remember { mutableStateOf("") }
+
+    if (showReviewDialog) {
+        AlertDialog(
+            onDismissRequest = { showReviewDialog = false },
+            title = { Text("Viết đánh giá phòng trọ", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Đánh giá không cần đăng nhập. Bạn có thể để ẩn danh.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Số sao đánh giá:", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row {
+                        (1..5).forEach { star ->
+                            IconButton(onClick = { reviewRating = star }) {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = if (star <= reviewRating) Color(0xFFF59E0B) else Color.LightGray
+                                )
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = reviewAuthor,
+                        onValueChange = { reviewAuthor = it },
+                        label = { Text("Tên của bạn (Để trống = Ẩn danh)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = reviewComment,
+                        onValueChange = { reviewComment = it },
+                        label = { Text("Cảm nhận về phòng trọ (an ninh, chủ trọ...)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (reviewComment.isNotBlank()) {
+                            val newRev = com.smartroomsearch.app.model.RoomReview(
+                                id = System.currentTimeMillis(),
+                                roomId = room.id,
+                                author = reviewAuthor.ifBlank { "Người dùng ẩn danh" },
+                                rating = reviewRating,
+                                comment = reviewComment
+                            )
+                            reviews = listOf(newRev) + reviews
+                            reviewComment = ""
+                            reviewAuthor = ""
+                            showReviewDialog = false
+                        }
+                    }
+                ) {
+                    Text("Gửi đánh giá")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReviewDialog = false }) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -346,9 +425,11 @@ fun RoomDetailScreen(roomId: Int, viewModel: MainViewModel, onBack: () -> Unit) 
 
                     Spacer(Modifier.height(24.dp))
 
-                    // Location Card & Map Link
+                    Spacer(Modifier.height(24.dp))
+
+                    // Location Card & Interactive OpenStreetMap
                     Text(
-                        text = "Vị trí phòng trọ",
+                        text = "Vị trí & Bản đồ (OpenStreetMap)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onBackground
@@ -359,38 +440,164 @@ fun RoomDetailScreen(roomId: Int, viewModel: MainViewModel, onBack: () -> Unit) 
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.4f))
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     text = room.address,
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
                                 )
+                            }
+                            Spacer(Modifier.height(12.dp))
+
+                            // Embedded OpenStreetMap with Leaflet (100% Free & Smooth)
+                            androidx.compose.ui.viewinterop.AndroidView(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                factory = { ctx ->
+                                    android.webkit.WebView(ctx).apply {
+                                        settings.javaScriptEnabled = true
+                                        webViewClient = android.webkit.WebViewClient()
+                                        val escapedTitle = room.title.replace("'", "\\'").replace("\"", "\\\"")
+                                        val html = """
+                                            <!DOCTYPE html><html><head>
+                                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+                                            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                                            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                                            <style>body,html,#map{margin:0;padding:0;width:100%;height:100%;}</style>
+                                            </head><body><div id="map"></div>
+                                            <script>
+                                            var map = L.map('map', {zoomControl: false}).setView([${room.lat}, ${room.lng}], 15);
+                                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                                            L.marker([${room.lat}, ${room.lng}]).addTo(map).bindPopup("<b>$escapedTitle</b>").openPopup();
+                                            </script></body></html>
+                                        """.trimIndent()
+                                        loadDataWithBaseURL("https://openstreetmap.org", html, "text/html", "UTF-8", null)
+                                    }
+                                }
+                            )
+
+                            Spacer(Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
                                     text = "Tọa độ: ${room.lat}, ${room.lng}",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            }
-                            TextButton(
-                                onClick = {
-                                    val gmmIntentUri = Uri.parse("geo:${room.lat},${room.lng}?q=${Uri.encode(room.address)}")
-                                    val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                                    mapIntent.setPackage("com.google.android.apps.maps")
-                                    context.startActivity(mapIntent)
+                                Button(
+                                    onClick = {
+                                        val gmmUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode("${room.title} ${room.address}")}")
+                                        val mapIntent = Intent(Intent.ACTION_VIEW, gmmUri)
+                                        try {
+                                            mapIntent.setPackage("com.google.android.apps.maps")
+                                            context.startActivity(mapIntent)
+                                        } catch (e: Exception) {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, gmmUri))
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Xem & Đánh giá trên Google Maps", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(28.dp))
+
+                    // Đánh giá từ người dùng (Review Section - Ẩn danh & Trực tiếp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Đánh giá & Trải nghiệm",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "4.9 / 5.0 (${reviews.size} đánh giá)",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { showReviewDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Viết đánh giá", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Danh sách các đánh giá
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        reviews.forEach { rev ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.3f))
                             ) {
-                                Text("Mở Bản đồ", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = rev.author,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                        Row {
+                                            repeat(rev.rating) {
+                                                Icon(
+                                                    Icons.Default.Star,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFF59E0B),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = rev.comment,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }

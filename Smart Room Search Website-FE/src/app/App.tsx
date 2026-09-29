@@ -89,8 +89,22 @@ const RoomMap = lazy(() => import("./components/RoomMap"));
 // TYPES
 // ═══════════════════════════════════════════════════════
 type Status = "available" | "rented" | "maintenance";
-type View = "home" | "rooms" | "detail" | "favorites";
+type View = "home" | "rooms" | "detail" | "favorites" | "map";
 type SortOption = "newest" | "price_asc" | "price_desc" | "area_desc" | "distance";
+
+interface RoomReview {
+  id: number;
+  roomId?: number | string;
+  room_id?: number | string;
+  userName?: string;
+  user_name?: string;
+  rating: number;
+  comment: string;
+  isAnonymous?: boolean;
+  is_anonymous?: boolean;
+  createdAt?: string;
+  created_at?: string;
+}
 
 interface Demand {
   id: number;
@@ -1298,6 +1312,8 @@ export default function App() {
     }
   } else if (pathParts[0] === "favorites") {
     view = "favorites";
+  } else if (pathParts[0] === "map") {
+    view = "map";
   }
 
   const [filters, setFilters] =
@@ -1825,9 +1841,26 @@ const goHome = () => {
               type="button"
               aria-label="Mở danh sách phòng"
               onClick={() => navigate("/rooms")}
-              className="rounded-lg px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                view === "rooms"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
             >
               Danh sách phòng
+            </button>
+            <button
+              type="button"
+              aria-label="Mở bản đồ trọ gần tôi"
+              onClick={() => navigate("/map")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                view === "map"
+                  ? "bg-primary text-white"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Map size={14} />
+              Bản đồ gần tôi
             </button>
             <button
               type="button"
@@ -1897,6 +1930,18 @@ const goHome = () => {
                 className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-foreground hover:bg-muted"
               >
                 Danh sách phòng
+              </button>
+              <button
+                onClick={() => {
+                  navigate("/map");
+                  setMobileMenu(false);
+                }}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold ${
+                  view === "map" ? "bg-primary text-white" : "text-foreground hover:bg-muted"
+                }`}
+              >
+                <Map size={16} className={view === "map" ? "text-white" : "text-primary"} />
+                Bản đồ gần tôi
               </button>
               <button
                 onClick={() => {
@@ -2427,6 +2472,14 @@ const goHome = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => navigate("/map")}
+              className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:border-primary hover:text-primary transition-all shadow-sm"
+            >
+              <Map size={15} className="text-primary" />
+              Xem trên bản đồ
+            </button>
+            <button
+              type="button"
               aria-expanded={showFilters}
               onClick={() => setShowFilters((f) => !f)}
               className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
@@ -2639,6 +2692,75 @@ const goHome = () => {
     const room = detailRoom!;
     const status = getStatusInfo(room.status);
     const dist = distances[room.id];
+
+    const [reviews, setReviews] = useState<RoomReview[]>([]);
+    const [loadingReviews, setLoadingReviews] = useState(true);
+    const [reviewAuthor, setReviewAuthor] = useState("");
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState("");
+    const [isAnonymous, setIsAnonymous] = useState(true);
+    const [submittingReview, setSubmittingReview] = useState(false);
+    const [reviewMsg, setReviewMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+    useEffect(() => {
+      let isMounted = true;
+      setLoadingReviews(true);
+      api
+        .get(`/rooms/${room.id}/reviews`)
+        .then((res) => {
+          if (isMounted) {
+            const list = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+            setReviews(list);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setReviews([]);
+        })
+        .finally(() => {
+          if (isMounted) setLoadingReviews(false);
+        });
+      return () => {
+        isMounted = false;
+      };
+    }, [room.id]);
+
+    const handleAddReview = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!reviewComment.trim()) return;
+      setSubmittingReview(true);
+      setReviewMsg(null);
+      try {
+        const payload = {
+          userName: isAnonymous
+            ? reviewAuthor.trim() || "Người dùng ẩn danh"
+            : reviewAuthor.trim() || "Khách xem phòng",
+          rating: Number(reviewRating),
+          comment: reviewComment.trim(),
+          isAnonymous: isAnonymous,
+        };
+        const res = await api.post(`/rooms/${room.id}/reviews`, payload);
+        const created = res.data?.data;
+        if (created) {
+          setReviews((prev) => [created, ...prev]);
+        }
+        setReviewComment("");
+        if (!isAnonymous) setReviewAuthor("");
+        setReviewMsg({
+          type: "success",
+          text: "Cảm ơn bạn! Đánh giá đã được gửi thành công.",
+        });
+        setTimeout(() => setReviewMsg(null), 4000);
+      } catch (err: any) {
+        setReviewMsg({
+          type: "error",
+          text:
+            err.response?.data?.message ||
+            "Không thể gửi đánh giá. Vui lòng thử lại.",
+        });
+      } finally {
+        setSubmittingReview(false);
+      }
+    };
     const roomInfoItems = [
       room.area != null && {
         label: "Diện tích",
@@ -2968,6 +3090,173 @@ const goHome = () => {
                 </div>
               </div>
 
+              {/* Reviews & Google Maps Feedback Section */}
+              <div className="rounded-2xl border border-border bg-card p-5 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                      <Star size={18} className="text-amber-500 fill-amber-500" />
+                      Đánh giá & Trải nghiệm thực tế
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {reviews.length > 0
+                        ? `${reviews.length} nhận xét từ khách thuê và người xem phòng`
+                        : "Chưa có đánh giá nào cho phòng này"}
+                    </p>
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((room.name || "") + " " + (room.address || ""))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    Xem & Đánh giá trên Google Maps <ExternalLink size={12} />
+                  </a>
+                </div>
+
+                {/* Form thêm đánh giá không cần đăng nhập / ẩn danh */}
+                <form onSubmit={handleAddReview} className="rounded-xl bg-muted/50 p-4 border border-border/60 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-bold text-foreground">
+                      Viết đánh giá của bạn (Không cần đăng nhập)
+                    </span>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={isAnonymous}
+                        onChange={(e) => setIsAnonymous(e.target.checked)}
+                        className="rounded text-primary focus:ring-primary h-3.5 w-3.5"
+                      />
+                      Đánh giá ẩn danh
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {!isAnonymous && (
+                      <input
+                        type="text"
+                        placeholder="Tên của bạn (VD: Minh Tuấn)"
+                        value={reviewAuthor}
+                        onChange={(e) => setReviewAuthor(e.target.value)}
+                        className="rounded-xl border border-border bg-input-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-medium">Mức độ hài lòng:</span>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            className="p-1 text-amber-500 hover:scale-110 transition-transform"
+                          >
+                            <Star
+                              size={18}
+                              fill={star <= reviewRating ? "currentColor" : "none"}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                        {reviewRating}/5 sao
+                      </span>
+                    </div>
+                  </div>
+
+                  <textarea
+                    rows={3}
+                    placeholder="Chia sẻ trải nghiệm về căn phòng này (an ninh, chủ trọ, không gian, phòng có giống ảnh không...)"
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-border bg-input-background p-3 text-xs text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+
+                  {reviewMsg && (
+                    <div
+                      className={`text-xs p-2.5 rounded-xl font-medium ${
+                        reviewMsg.type === "success"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                      }`}
+                    >
+                      {reviewMsg.text}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={submittingReview || !reviewComment.trim()}
+                      className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                    >
+                      {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Danh sách review */}
+                <div className="space-y-3 pt-1">
+                  {loadingReviews ? (
+                    <p className="text-center text-xs text-muted-foreground py-4">
+                      Đang tải đánh giá...
+                    </p>
+                  ) : reviews.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <p className="text-xs">Chưa có đánh giá nào cho phòng này.</p>
+                      <p className="text-[11px] mt-0.5">Hãy là người đầu tiên chia sẻ cảm nhận thực tế!</p>
+                    </div>
+                  ) : (
+                    reviews.map((rev) => (
+                      <div
+                        key={rev.id}
+                        className="rounded-xl border border-border bg-muted/20 p-3.5 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
+                              {(rev.userName || rev.user_name || "A")[0].toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-foreground">
+                              {rev.userName || rev.user_name || "Người dùng ẩn danh"}
+                            </span>
+                            {(rev.isAnonymous || rev.is_anonymous) && (
+                              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground font-semibold">
+                                Ẩn danh
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-amber-500">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                size={11}
+                                fill={s <= rev.rating ? "currentColor" : "none"}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-line">
+                          {rev.comment}
+                        </p>
+                        {(rev.createdAt || rev.created_at) && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(rev.createdAt || rev.created_at!).toLocaleDateString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
               {/* Related */}
               {related.length > 0 && (
                 <div>
@@ -3116,6 +3405,242 @@ const goHome = () => {
     );
   };
 
+  // ─── MAP PAGE (Bản đồ trọ gần vị trí của mình - OpenStreetMap) ────────
+  const MapPage = () => {
+    const [selectedRadius, setSelectedRadius] = useState<number>(5); // km, 0 = all
+    const [userGps, setUserGps] = useState<{ lat: number; lng: number } | null>(userLocation);
+    const [locating, setLocating] = useState(false);
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+
+    const handleGetLocation = () => {
+      if (!navigator.geolocation) {
+        alert("Trình duyệt của bạn không hỗ trợ định vị GPS.");
+        return;
+      }
+      setLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserGps(loc);
+          setUserLocation(loc);
+          setLocating(false);
+        },
+        (err) => {
+          console.warn("Geolocation error", err);
+          setLocating(false);
+          alert("Không thể lấy vị trí hiện tại. Vui lòng cho phép quyền truy cập vị trí trên trình duyệt.");
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
+
+    const effectiveLat = userGps?.lat ?? 10.7769;
+    const effectiveLng = userGps?.lng ?? 106.7009;
+
+    const validRooms = useMemo(() => {
+      return rooms
+        .filter((r) => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng))
+        .map((r) => {
+          const dist = haversine(effectiveLat, effectiveLng, r.lat!, r.lng!);
+          return { ...r, distanceKm: dist };
+        })
+        .filter((r) => selectedRadius === 0 || r.distanceKm <= selectedRadius)
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+    }, [rooms, effectiveLat, effectiveLng, selectedRadius]);
+
+    const radiusOptions = [
+      { label: "1 km", value: 1 },
+      { label: "3 km", value: 3 },
+      { label: "5 km", value: 5 },
+      { label: "10 km", value: 10 },
+      { label: "Tất cả", value: 0 },
+    ];
+
+    return (
+      <div className="pt-14 min-h-screen bg-background flex flex-col">
+        {/* Top filter bar */}
+        <div className="border-b border-border bg-card px-4 py-3 shadow-sm z-10">
+          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={goHome}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted hover:bg-muted/80 transition-colors"
+                title="Về trang chủ"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <div>
+                <h1 className="text-base sm:text-lg font-extrabold text-foreground flex items-center gap-2">
+                  <Map className="text-primary" size={18} />
+                  Bản đồ tìm phòng trọ gần bạn
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {validRooms.length} phòng trọ {selectedRadius > 0 ? `trong bán kính ${selectedRadius}km` : "trên toàn khu vực"}
+                </p>
+              </div>
+            </div>
+
+            {/* Radius Options & GPS button */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleGetLocation}
+                disabled={locating}
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-sm ${
+                  userGps
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                    : "bg-card border-border text-foreground hover:border-primary hover:text-primary"
+                }`}
+              >
+                <Navigation size={13} className={locating ? "animate-spin" : ""} />
+                {locating ? "Đang định vị..." : userGps ? "Vị trí của bạn (Đã bật)" : "Định vị vị trí của tôi"}
+              </button>
+
+              <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
+                {radiusOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSelectedRadius(opt.value)}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                      selectedRadius === opt.value
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Split Map & Room List */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+          {/* Map view */}
+          <div className="flex-1 h-[50vh] lg:h-[calc(100vh-120px)] relative">
+            <Suspense fallback={<div className="h-full w-full bg-muted animate-pulse flex items-center justify-center text-muted-foreground text-sm">Đang tải bản đồ OpenStreetMap...</div>}>
+              <RoomMap
+                rooms={validRooms.map((r) => ({
+                  id: Number(r.id),
+                  title: r.name,
+                  lat: r.lat!,
+                  lng: r.lng!,
+                  price: r.price,
+                  address: r.address,
+                  area: r.area,
+                  district: r.district,
+                }))}
+                userLat={userGps?.lat}
+                userLng={userGps?.lng}
+                radiusKm={selectedRadius > 0 ? selectedRadius : 15}
+                height="100%"
+                variant="overview"
+                onViewRoom={(id) => {
+                  const target = rooms.find((r) => r.id === id);
+                  if (target) setSelectedRoom(target);
+                }}
+              />
+            </Suspense>
+          </div>
+
+          {/* Sidebar / bottom list */}
+          <div className="w-full lg:w-[420px] bg-card border-t lg:border-t-0 lg:border-l border-border h-[45vh] lg:h-[calc(100vh-120px)] overflow-y-auto p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <span className="text-sm font-bold text-foreground">
+                Danh sách phòng gần bạn ({validRooms.length})
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Sắp xếp theo khoảng cách
+              </span>
+            </div>
+
+            {validRooms.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                <MapPin size={32} className="mb-2 opacity-50" />
+                <p className="text-sm font-semibold">Không có phòng trong bán kính này</p>
+                <p className="text-xs mt-1">Hãy thử mở rộng bán kính lên 10km hoặc chọn "Tất cả"</p>
+              </div>
+            ) : (
+              validRooms.map((room) => {
+                const dist = room.distanceKm;
+                const isSelected = selectedRoom?.id === room.id;
+                return (
+                  <div
+                    key={room.id}
+                    onClick={() => setSelectedRoom(room)}
+                    className={`rounded-2xl border p-3 cursor-pointer transition-all hover:shadow-md flex gap-3 ${
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "border-border bg-card hover:border-primary/50"
+                    }`}
+                  >
+                    <img
+                      src={room.images?.[0] || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80"}
+                      alt={room.name}
+                      className="w-24 h-24 rounded-xl object-cover shrink-0"
+                    />
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-extrabold text-primary">
+                            {formatPrice(room.price)}/tháng
+                          </span>
+                          {room.area && (
+                            <span className="text-[11px] text-muted-foreground">
+                              · {room.area}m²
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-bold text-foreground line-clamp-1 mt-0.5" title={room.name}>
+                          {room.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                          {room.address}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/50 text-[11px]">
+                        <span className="text-primary font-semibold flex items-center gap-1">
+                          <Navigation size={11} />
+                          {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(room.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary"
+                            title="Chỉ đường Google Maps"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              viewRoom(Number(room.id));
+                            }}
+                            className="rounded-lg bg-primary px-2.5 py-1 text-xs font-bold text-white hover:brightness-95 transition-all"
+                          >
+                            Xem phòng
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Admin UI removed (managed by database/admin-app)
 
   // ═══════════════════════════════════════════════════════
@@ -3211,6 +3736,16 @@ const goHome = () => {
                 )}
               </div>
             </div>
+          </motion.div>
+        )}
+        {view === "map" && (
+          <motion.div
+            key="map"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {MapPage()}
           </motion.div>
         )}
         {view === "detail" && !detailRoom && (
