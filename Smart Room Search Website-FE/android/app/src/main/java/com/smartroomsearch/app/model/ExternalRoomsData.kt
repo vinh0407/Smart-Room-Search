@@ -21,132 +21,141 @@ object ExternalRoomsData {
      */
     suspend fun fetchLiveRooms(): List<Room> = withContext(Dispatchers.IO) {
         try {
-            val url = URL("https://gateway.chotot.com/v1/public/ad-listing?region_v2=13000&cg=1050&limit=30")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            conn.setRequestProperty("Accept", "application/json")
-            conn.connectTimeout = 6000
-            conn.readTimeout = 6000
+            val offsets = listOf(0, 50, 100, 150)
+            val liveRooms = mutableListOf<Room>()
+            val now = System.currentTimeMillis()
+            val seenIds = mutableSetOf<Long>()
 
-            if (conn.responseCode == 200) {
-                val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                val responseText = reader.readText()
-                reader.close()
-                val json = JSONObject(responseText)
-                val adsArray = json.optJSONArray("ads")
-                if (adsArray != null && adsArray.length() > 0) {
-                    val liveRooms = mutableListOf<Room>()
-                    val now = System.currentTimeMillis()
+            for (offset in offsets) {
+                try {
+                    val url = URL("https://gateway.chotot.com/v1/public/ad-listing?region_v2=13000&cg=1050&limit=50&o=$offset")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "GET"
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    conn.setRequestProperty("Accept", "application/json")
+                    conn.connectTimeout = 4000
+                    conn.readTimeout = 4000
 
-                    for (i in 0 until adsArray.length()) {
-                        val ad = adsArray.getJSONObject(i)
-                        val listId = ad.optLong("list_id", 0L)
-                        val price = ad.optDouble("price", 0.0)
-                        if (listId <= 0L || price <= 0.0) continue
+                    if (conn.responseCode == 200) {
+                        val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                        val responseText = reader.readText()
+                        reader.close()
+                        val json = JSONObject(responseText)
+                        val adsArray = json.optJSONArray("ads")
+                        if (adsArray != null && adsArray.length() > 0) {
+                            for (i in 0 until adsArray.length()) {
+                                val ad = adsArray.getJSONObject(i)
+                                val listId = ad.optLong("list_id", 0L)
+                                val price = ad.optDouble("price", 0.0)
+                                if (listId <= 0L || price <= 0.0 || seenIds.contains(listId)) continue
+                                seenIds.add(listId)
 
-                        val subject = ad.optString("subject", "Phòng trọ")
-                        val body = ad.optString("body", subject)
-                        val rawArea = ad.optString("area_name", "Quận 1")
-                        val street = ad.optString("street_name", "")
-                        val ward = ad.optString("ward_name", "")
-                        val district = when {
-                            rawArea.contains("Gò Vấp", ignoreCase = true) -> "Gò Vấp"
-                            rawArea.contains("Bình Thạnh", ignoreCase = true) -> "Bình Thạnh"
-                            rawArea.contains("Tân Phú", ignoreCase = true) -> "Tân Phú"
-                            rawArea.contains("Tân Bình", ignoreCase = true) -> "Tân Bình"
-                            rawArea.contains("Phú Nhuận", ignoreCase = true) -> "Phú Nhuận"
-                            rawArea.contains("Bình Tân", ignoreCase = true) -> "Bình Tân"
-                            rawArea.contains("Thủ Đức", ignoreCase = true) -> "Thủ Đức"
-                            rawArea.contains("Quận 1", ignoreCase = true) -> "Quận 1"
-                            rawArea.contains("Quận 3", ignoreCase = true) -> "Quận 3"
-                            rawArea.contains("Quận 4", ignoreCase = true) -> "Quận 4"
-                            rawArea.contains("Quận 5", ignoreCase = true) -> "Quận 5"
-                            rawArea.contains("Quận 6", ignoreCase = true) -> "Quận 6"
-                            rawArea.contains("Quận 7", ignoreCase = true) -> "Quận 7"
-                            rawArea.contains("Quận 8", ignoreCase = true) -> "Quận 8"
-                            rawArea.contains("Quận 10", ignoreCase = true) -> "Quận 10"
-                            rawArea.contains("Quận 11", ignoreCase = true) -> "Quận 11"
-                            rawArea.contains("Quận 12", ignoreCase = true) -> "Quận 12"
-                            else -> rawArea.replace("Quận ", "").trim()
-                        }
-                        val fullAddress = listOf(street, ward, rawArea, "TP.HCM").filter { it.isNotBlank() }.joinToString(", ")
-                        val size = ad.optDouble("size", 25.0)
-
-                        // 100% Ảnh CDN từ cdn.chotot.com
-                        val imagesList = mutableListOf<String>()
-                        val imagesArr = ad.optJSONArray("images")
-                        if (imagesArr != null) {
-                            for (j in 0 until imagesArr.length()) {
-                                val imgUrl = imagesArr.optString(j)
-                                if (imgUrl.isNotBlank() && imgUrl.startsWith("http")) {
-                                    imagesList.add(imgUrl)
+                                val subject = ad.optString("subject", "Phòng trọ")
+                                val body = ad.optString("body", subject)
+                                val rawArea = ad.optString("area_name", "Quận 1")
+                                val street = ad.optString("street_name", "")
+                                val ward = ad.optString("ward_name", "")
+                                val district = when {
+                                    rawArea.contains("Gò Vấp", ignoreCase = true) -> "Gò Vấp"
+                                    rawArea.contains("Bình Thạnh", ignoreCase = true) -> "Bình Thạnh"
+                                    rawArea.contains("Tân Phú", ignoreCase = true) -> "Tân Phú"
+                                    rawArea.contains("Tân Bình", ignoreCase = true) -> "Tân Bình"
+                                    rawArea.contains("Phú Nhuận", ignoreCase = true) -> "Phú Nhuận"
+                                    rawArea.contains("Bình Tân", ignoreCase = true) -> "Bình Tân"
+                                    rawArea.contains("Thủ Đức", ignoreCase = true) -> "Thủ Đức"
+                                    rawArea.contains("Quận 1", ignoreCase = true) -> "Quận 1"
+                                    rawArea.contains("Quận 3", ignoreCase = true) -> "Quận 3"
+                                    rawArea.contains("Quận 4", ignoreCase = true) -> "Quận 4"
+                                    rawArea.contains("Quận 5", ignoreCase = true) -> "Quận 5"
+                                    rawArea.contains("Quận 6", ignoreCase = true) -> "Quận 6"
+                                    rawArea.contains("Quận 7", ignoreCase = true) -> "Quận 7"
+                                    rawArea.contains("Quận 8", ignoreCase = true) -> "Quận 8"
+                                    rawArea.contains("Quận 10", ignoreCase = true) -> "Quận 10"
+                                    rawArea.contains("Quận 11", ignoreCase = true) -> "Quận 11"
+                                    rawArea.contains("Quận 12", ignoreCase = true) -> "Quận 12"
+                                    else -> rawArea.replace("Quận ", "").trim()
                                 }
+                                val fullAddress = listOf(street, ward, rawArea, "TP.HCM").filter { it.isNotBlank() }.joinToString(", ")
+                                val size = ad.optDouble("size", 25.0)
+
+                                // 100% Ảnh CDN từ cdn.chotot.com
+                                val imagesList = mutableListOf<String>()
+                                val imagesArr = ad.optJSONArray("images")
+                                if (imagesArr != null) {
+                                    for (j in 0 until imagesArr.length()) {
+                                        val imgUrl = imagesArr.optString(j)
+                                        if (imgUrl.isNotBlank() && imgUrl.startsWith("http")) {
+                                            imagesList.add(imgUrl)
+                                        }
+                                    }
+                                }
+                                if (imagesList.isEmpty()) {
+                                    val singleImg = ad.optString("image", "")
+                                    if (singleImg.isNotBlank() && singleImg.startsWith("http")) {
+                                        imagesList.add(singleImg)
+                                    }
+                                }
+                                if (imagesList.isEmpty()) continue
+
+                                val lat = ad.optDouble("latitude", 10.7769)
+                                val lng = ad.optDouble("longitude", 106.7009)
+
+                                val amenities = mutableListOf("Wifi tốc độ cao", "Camera an ninh")
+                                val combinedText = (subject + " " + body).lowercase()
+                                if (combinedText.contains("máy lạnh") || combinedText.contains("điều hòa")) amenities.add("Máy lạnh")
+                                if (combinedText.contains("gác") || combinedText.contains("duplex")) amenities.add("Gác xép")
+                                if (combinedText.contains("tủ lạnh")) amenities.add("Tủ lạnh")
+                                if (combinedText.contains("máy giặt")) amenities.add("Máy giặt")
+                                if (combinedText.contains("bếp")) amenities.add("Khu bếp riêng")
+                                if (combinedText.contains("ban công") || combinedText.contains("cửa sổ")) amenities.add("Ban công")
+                                if (combinedText.contains("xe")) amenities.add("Chỗ để xe free")
+                                if (combinedText.contains("tự do")) amenities.add("Giờ giấc tự do")
+
+                                val safeId = (listId % Int.MAX_VALUE).toInt()
+                                liveRooms.add(
+                                    Room(
+                                        id = safeId,
+                                        title = "[Chợ Tốt Nhà] $subject",
+                                        description = body,
+                                        address = fullAddress,
+                                        price = price,
+                                        area = if (size > 0) size else 25.0,
+                                        images = imagesList,
+                                        status = RoomStatus.available,
+                                        electricity = 3800,
+                                        water = 100000,
+                                        internet = 100000,
+                                        serviceFee = 150000,
+                                        maxPeople = 2,
+                                        district = district,
+                                        city = "TP.HCM",
+                                        lat = lat,
+                                        lng = lng,
+                                        amenities = amenities,
+                                        phone = "0908123456",
+                                        zaloLink = "https://zalo.me/0908123456",
+                                        views = 380 + (liveRooms.size * 5),
+                                        contacts = 28 + (liveRooms.size % 20),
+                                        isFeatured = true,
+                                        isNew = true,
+                                        isCheap = price <= 3000000,
+                                        rating = 4.8,
+                                        source = "nhatot",
+                                        externalUrl = "https://www.nhatot.com/$listId.htm",
+                                        createdAt = isoFormat.format(Date(now - liveRooms.size * 60000L)),
+                                        updatedAt = isoFormat.format(Date(now - liveRooms.size * 60000L))
+                                    )
+                                )
                             }
                         }
-                        if (imagesList.isEmpty()) {
-                            val singleImg = ad.optString("image", "")
-                            if (singleImg.isNotBlank() && singleImg.startsWith("http")) {
-                                imagesList.add(singleImg)
-                            }
-                        }
-                        if (imagesList.isEmpty()) continue
-
-                        val lat = ad.optDouble("latitude", 10.7769)
-                        val lng = ad.optDouble("longitude", 106.7009)
-
-                        val amenities = mutableListOf("Wifi tốc độ cao", "Camera an ninh")
-                        val combinedText = (subject + " " + body).lowercase()
-                        if (combinedText.contains("máy lạnh") || combinedText.contains("điều hòa")) amenities.add("Máy lạnh")
-                        if (combinedText.contains("gác") || combinedText.contains("duplex")) amenities.add("Gác xép")
-                        if (combinedText.contains("tủ lạnh")) amenities.add("Tủ lạnh")
-                        if (combinedText.contains("máy giặt")) amenities.add("Máy giặt")
-                        if (combinedText.contains("bếp")) amenities.add("Khu bếp riêng")
-                        if (combinedText.contains("ban công") || combinedText.contains("cửa sổ")) amenities.add("Ban công")
-                        if (combinedText.contains("xe")) amenities.add("Chỗ để xe free")
-                        if (combinedText.contains("tự do")) amenities.add("Giờ giấc tự do")
-
-                        val safeId = (listId % Int.MAX_VALUE).toInt()
-                        liveRooms.add(
-                            Room(
-                                id = safeId,
-                                title = "[Chợ Tốt Nhà] $subject",
-                                description = body,
-                                address = fullAddress,
-                                price = price,
-                                area = if (size > 0) size else 25.0,
-                                images = imagesList,
-                                status = RoomStatus.available,
-                                electricity = 3800,
-                                water = 100000,
-                                internet = 100000,
-                                serviceFee = 150000,
-                                maxPeople = 2,
-                                district = district,
-                                city = "TP.HCM",
-                                lat = lat,
-                                lng = lng,
-                                amenities = amenities,
-                                phone = "0908123456",
-                                zaloLink = "https://zalo.me/0908123456",
-                                views = 380 + (i * 12),
-                                contacts = 28 + (i * 2),
-                                isFeatured = true,
-                                isNew = true,
-                                isCheap = price <= 3000000,
-                                rating = 4.8,
-                                source = "nhatot",
-                                externalUrl = "https://www.nhatot.com/$listId.htm",
-                                createdAt = isoFormat.format(Date(now - i * 60000)),
-                                updatedAt = isoFormat.format(Date(now - i * 60000))
-                            )
-                        )
                     }
-
-                    if (liveRooms.isNotEmpty()) {
-                        return@withContext liveRooms
-                    }
+                } catch (e: Exception) {
+                    // continue to next offset
                 }
+            }
+
+            if (liveRooms.isNotEmpty()) {
+                return@withContext liveRooms
             }
             getExternalRooms()
         } catch (e: Exception) {

@@ -1,11 +1,14 @@
 /**
  * External Rooms Integration Service
- * Real-time Dynamic Fetcher & Auto-Synchronizer:
+ * Comprehensive Multi-Page Live Crawler & Auto-Sync Engine:
  * - Chợ Tốt Nhà (gateway.chotot.com - CDN: cdn.chotot.com)
  * - Phongtro123.com (phongtro123.com - CDN: pt123.cdn.static123.com)
  * 
- * Tự động cập nhật tin mới từ live API.
- * Tự động xóa bỏ tin khi chủ bài viết gỡ bỏ hoặc phòng đã cho thuê.
+ * Tính năng chính:
+ * 1. Crawl toàn bộ danh sách phòng thực tế từ Chợ Tốt và Phongtro123 (hàng trăm tin đăng thực tế).
+ * 2. 100% hình ảnh hiển thị trực tiếp từ CDN máy chủ ảnh thật: cdn.chotot.com và pt123.cdn.static123.com.
+ * 3. Tự động cập nhật mỗi khi có tin mới (Background Auto-Sync định kỳ mỗi 2 phút).
+ * 4. Tự động xóa bài đăng khi chủ phòng gỡ bỏ, xóa bài hoặc đã cho thuê.
  */
 
 export const EXTERNAL_SOURCES = {
@@ -35,7 +38,7 @@ export const EXTERNAL_SOURCES = {
   },
 };
 
-// Initial verified fallback in case network to external services is temporarily disrupted
+// Initial verified fallback in case of temporary network disruption
 const initialVerifiedRooms = [
   {
     id: 134719785,
@@ -278,10 +281,10 @@ const initialVerifiedRooms = [
   },
 ];
 
-// In-memory live pool and last sync time
+// Active in-memory pool of all current listings
 let activeExternalRoomsPool = [...initialVerifiedRooms];
 let lastSyncTimestamp = 0;
-const SYNC_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes auto-sync TTL
+const SYNC_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes TTL
 let isSyncing = false;
 
 const cleanDistrictName = (rawDistrict = '') => {
@@ -298,29 +301,37 @@ const cleanDistrictName = (rawDistrict = '') => {
 };
 
 /**
- * Fetch active ads from live Chợ Tốt Gateway API
+ * Fetch all available ads across multiple pages from Chợ Tốt Gateway API
  */
-const fetchLiveChoTot = async () => {
-  try {
-    const res = await fetch('https://gateway.chotot.com/v1/public/ad-listing?region_v2=13000&cg=1050&limit=25', {
+const fetchAllLiveChoTot = async () => {
+  const offsets = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450];
+  const promises = offsets.map((o) =>
+    fetch(`https://gateway.chotot.com/v1/public/ad-listing?region_v2=13000&cg=1050&limit=50&o=${o}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         Accept: 'application/json',
       },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!data.ads || !Array.isArray(data.ads)) return [];
+    })
+      .then((r) => (r.ok ? r.json() : { ads: [] }))
+      .catch(() => ({ ads: [] }))
+  );
 
-    return data.ads
-      .filter((ad) => ad.list_id && ad.price > 0 && ad.images && ad.images.length > 0)
-      .map((ad) => {
+  const pagesResults = await Promise.all(promises);
+  const allAds = [];
+  const seenIds = new Set();
+
+  for (const page of pagesResults) {
+    if (page.ads && Array.isArray(page.ads)) {
+      for (const ad of page.ads) {
+        if (!ad.list_id || seenIds.has(ad.list_id) || !ad.price || ad.price <= 0) continue;
+        if (!ad.images || ad.images.length === 0) continue;
+        seenIds.add(ad.list_id);
+
         const district = cleanDistrictName(ad.area_name);
         const street = ad.street_name ? `${ad.street_name}, ` : '';
         const ward = ad.ward_name ? `${ad.ward_name}, ` : '';
         const fullAddress = `${street}${ward}${ad.area_name || 'TP.HCM'}, TP.HCM`;
 
-        // Parse amenities from description or characteristics
         const amenities = ['Wifi'];
         const text = (ad.subject + ' ' + (ad.body || '')).toLowerCase();
         if (text.includes('máy lạnh') || text.includes('điều hòa')) amenities.push('Máy lạnh');
@@ -332,7 +343,7 @@ const fetchLiveChoTot = async () => {
         if (text.includes('xe') || text.includes('bãi xe')) amenities.push('Chỗ để xe');
         if (text.includes('tự do') || text.includes('không chung chủ')) amenities.push('Giờ giấc tự do');
 
-        return {
+        allAds.push({
           id: Number(ad.list_id),
           title: `[Chợ Tốt Nhà] ${ad.subject}`,
           description: ad.body || ad.subject,
@@ -363,125 +374,131 @@ const fetchLiveChoTot = async () => {
           externalUrl: `https://www.nhatot.com/${ad.list_id}.htm`,
           created_at: new Date(ad.orig_list_time || ad.list_time || Date.now()).toISOString(),
           updated_at: new Date(ad.list_time || Date.now()).toISOString(),
-        };
-      });
-  } catch (err) {
-    console.warn('[externalRooms] Chợ Tốt live fetch error:', err.message);
-    return [];
+        });
+      }
+    }
   }
+
+  return allAds;
 };
 
 /**
- * Fetch active hostels from live Phongtro123
+ * Fetch all available hostels across multiple pages from Phongtro123
  */
-const fetchLivePhongtro123 = async () => {
-  try {
-    const res = await fetch('https://phongtro123.com/tinh-thanh/ho-chi-minh', {
+const fetchAllLivePhongtro123 = async () => {
+  const pages = [1, 2, 3, 4, 5];
+  const promises = pages.map((p) =>
+    fetch(`https://phongtro123.com/tinh-thanh/ho-chi-minh?page=${p}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
         Accept: 'text/html,application/xhtml+xml',
       },
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-    const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+    })
+      .then((r) => (r.ok ? r.text() : ''))
+      .catch(() => '')
+  );
+
+  const htmls = await Promise.all(promises);
+  const allHostels = [];
+  const seenIds = new Set();
+  const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+
+  const districtList = [
+    'Quận 1', 'Quận 3', 'Quận 4', 'Quận 5', 'Quận 6', 'Quận 7', 'Quận 8',
+    'Quận 10', 'Quận 11', 'Quận 12', 'Bình Thạnh', 'Gò Vấp', 'Tân Bình',
+    'Tân Phú', 'Phú Nhuận', 'Bình Tân', 'Thủ Đức'
+  ];
+
+  for (let pIdx = 0; pIdx < htmls.length; pIdx++) {
+    const html = htmls[pIdx];
+    if (!html) continue;
     let match;
-    const items = [];
+    scriptRegex.lastIndex = 0;
 
     while ((match = scriptRegex.exec(html)) !== null) {
       if (match[1].includes('"@type":"Hostel"')) {
         try {
-          const parsed = JSON.parse(match[1]);
-          items.push(parsed);
+          const h = JSON.parse(match[1]);
+          if (!h.name || !h.image || !h.url) continue;
+
+          const idMatch = h.url.match(/pr(\d+)\.html/);
+          const id = idMatch ? Number(idMatch[1]) : 700000 + allHostels.length;
+          if (seenIds.has(id)) continue;
+          seenIds.add(id);
+
+          const text = `${h.address?.streetAddress || ''} ${h.name}`;
+          let district = 'Bình Thạnh';
+          for (const d of districtList) {
+            if (new RegExp(`\\b${d}\\b`, 'i').test(text)) {
+              district = d;
+              break;
+            }
+          }
+
+          const price = Number(h.priceRange) || 2500000;
+          const areaMatch = text.match(/(\d+)\s*(m2|m²)/i);
+          const area = areaMatch ? Number(areaMatch[1]) : 22;
+
+          const amenities = ['Wifi'];
+          const lowerDesc = (h.name + ' ' + (h.description || '')).toLowerCase();
+          if (lowerDesc.includes('máy lạnh')) amenities.push('Máy lạnh');
+          if (lowerDesc.includes('gác')) amenities.push('Gác lửng');
+          if (lowerDesc.includes('bếp')) amenities.push('Khu bếp riêng');
+          if (lowerDesc.includes('wc riêng')) amenities.push('WC riêng');
+          if (lowerDesc.includes('xe')) amenities.push('Chỗ để xe');
+
+          allHostels.push({
+            id: id,
+            title: `[Phongtro123] ${h.name}`,
+            description: h.description || h.name,
+            address: h.address?.streetAddress || `${district}, TP.HCM`,
+            district: district,
+            city: 'TP.HCM',
+            price: price,
+            area: area,
+            images: [h.image],
+            status: 'available',
+            electricity: 3800,
+            water: 100000,
+            internet: 80000,
+            serviceFee: 100000,
+            maxPeople: 2,
+            lat: 10.795 + Math.random() * 0.04,
+            lng: 106.685 + Math.random() * 0.04,
+            amenities,
+            phone: h.telephone || '0931313570',
+            zaloLink: `https://zalo.me/${h.telephone || '0931313570'}`,
+            views: Math.floor(Math.random() * 500) + 200,
+            contacts: Math.floor(Math.random() * 50) + 15,
+            isFeatured: true,
+            isNew: true,
+            isCheap: price <= 3000000,
+            rating: 4.8,
+            source: 'phongtro123',
+            externalUrl: h.url,
+            created_at: new Date(Date.now() - allHostels.length * 120000).toISOString(),
+            updated_at: new Date(Date.now() - allHostels.length * 120000).toISOString(),
+          });
         } catch (e) {}
       }
     }
-
-    return items
-      .filter((h) => h.name && h.image && h.url)
-      .map((h, idx) => {
-        // Extract numeric ID from URL (e.g. pr649687.html -> 649687)
-        const idMatch = h.url.match(/pr(\d+)\.html/);
-        const id = idMatch ? Number(idMatch[1]) : 700000 + idx;
-
-        // Detect district from streetAddress or name
-        const text = `${h.address?.streetAddress || ''} ${h.name}`;
-        let district = 'Bình Thạnh';
-        const districtList = [
-          'Quận 1', 'Quận 3', 'Quận 4', 'Quận 5', 'Quận 6', 'Quận 7', 'Quận 8',
-          'Quận 10', 'Quận 11', 'Quận 12', 'Bình Thạnh', 'Gò Vấp', 'Tân Bình',
-          'Tân Phú', 'Phú Nhuận', 'Bình Tân', 'Thủ Đức'
-        ];
-        for (const d of districtList) {
-          if (new RegExp(`\\b${d}\\b`, 'i').test(text)) {
-            district = d;
-            break;
-          }
-        }
-
-        const price = Number(h.priceRange) || 2500000;
-        const areaMatch = text.match(/(\d+)\s*(m2|m²)/i);
-        const area = areaMatch ? Number(areaMatch[1]) : 22;
-
-        const amenities = ['Wifi'];
-        const lowerDesc = (h.name + ' ' + (h.description || '')).toLowerCase();
-        if (lowerDesc.includes('máy lạnh')) amenities.push('Máy lạnh');
-        if (lowerDesc.includes('gác')) amenities.push('Gác lửng');
-        if (lowerDesc.includes('bếp')) amenities.push('Khu bếp riêng');
-        if (lowerDesc.includes('wc riêng')) amenities.push('WC riêng');
-        if (lowerDesc.includes('xe')) amenities.push('Chỗ để xe');
-
-        return {
-          id: id,
-          title: `[Phongtro123] ${h.name}`,
-          description: h.description || h.name,
-          address: h.address?.streetAddress || `${district}, TP.HCM`,
-          district: district,
-          city: 'TP.HCM',
-          price: price,
-          area: area,
-          images: [h.image],
-          status: 'available',
-          electricity: 3800,
-          water: 100000,
-          internet: 80000,
-          serviceFee: 100000,
-          maxPeople: 2,
-          lat: 10.795 + Math.random() * 0.04,
-          lng: 106.685 + Math.random() * 0.04,
-          amenities,
-          phone: h.telephone || '0931313570',
-          zaloLink: `https://zalo.me/${h.telephone || '0931313570'}`,
-          views: Math.floor(Math.random() * 500) + 200,
-          contacts: Math.floor(Math.random() * 50) + 15,
-          isFeatured: true,
-          isNew: true,
-          isCheap: price <= 3000000,
-          rating: 4.8,
-          source: 'phongtro123',
-          externalUrl: h.url,
-          created_at: new Date(Date.now() - idx * 180000).toISOString(),
-          updated_at: new Date(Date.now() - idx * 180000).toISOString(),
-        };
-      });
-  } catch (err) {
-    console.warn('[externalRooms] Phongtro123 live fetch error:', err.message);
-    return [];
   }
+
+  return allHostels;
 };
 
 /**
- * Synchronize live listings from external platforms.
- * Completely replaces the active pool with the newest active ads.
- * Any removed/deleted ads on original sites are automatically purged!
+ * Synchronize live listings:
+ * Completely refreshes the pool with all active listings.
+ * Any removed/deleted listings from the original sources are automatically purged!
  */
 export const syncLiveExternalRooms = async () => {
   if (isSyncing) return activeExternalRoomsPool;
   isSyncing = true;
   try {
     const [choTotResults, phongtro123Results] = await Promise.allSettled([
-      fetchLiveChoTot(),
-      fetchLivePhongtro123(),
+      fetchAllLiveChoTot(),
+      fetchAllLivePhongtro123(),
     ]);
 
     const liveChoTot = choTotResults.status === 'fulfilled' ? choTotResults.value : [];
@@ -490,7 +507,7 @@ export const syncLiveExternalRooms = async () => {
     const newLiveRooms = [...liveChoTot, ...livePhongtro123];
 
     if (newLiveRooms.length > 0) {
-      // Overwrite the pool with active listings only -> Automatically deletes removed listings!
+      // OVERWRITE POOL: Automatically purges any listing removed by owner
       activeExternalRoomsPool = newLiveRooms;
       lastSyncTimestamp = Date.now();
       console.log(`[externalRooms] Live sync complete: ${newLiveRooms.length} active listings (${liveChoTot.length} Chợ Tốt, ${livePhongtro123.length} Phongtro123)`);
@@ -505,7 +522,7 @@ export const syncLiveExternalRooms = async () => {
   return activeExternalRoomsPool;
 };
 
-// Automatic background interval: sync every 3 minutes
+// Periodic auto-sync every 2 minutes
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     syncLiveExternalRooms().catch(() => {});
@@ -519,7 +536,6 @@ syncLiveExternalRooms().catch(() => {});
  * Fetch external rooms filtered by request query parameters
  */
 export const fetchExternalRooms = async (filters = {}) => {
-  // If cache is expired, trigger background or immediate sync
   if (Date.now() - lastSyncTimestamp > SYNC_CACHE_TTL_MS) {
     await syncLiveExternalRooms();
   }
@@ -567,7 +583,7 @@ export const fetchExternalRooms = async (filters = {}) => {
 
 /**
  * Find single external room by ID.
- * If the owner removed the listing, it won't exist in activeExternalRoomsPool -> returns null (404).
+ * Returns null (404) if the owner removed the listing.
  */
 export const getExternalRoomById = (id) => {
   const room = activeExternalRoomsPool.find((r) => String(r.id) === String(id));
