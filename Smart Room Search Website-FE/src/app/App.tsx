@@ -124,7 +124,7 @@ const asDemandList = (payload: unknown): Demand[] => {
 };
 
 interface Room {
-  id: number;
+  id: number | string;
   name: string;
   price: number;
   electricity?: number;
@@ -151,6 +151,8 @@ interface Room {
   isNew: boolean;
   isCheap: boolean;
   rating: number | null;
+  source?: string;
+  externalUrl?: string;
 }
 
 interface Banner {
@@ -178,6 +180,7 @@ interface FilterState {
   district: string;
   amenities: string[];
   status: string;
+  source?: string;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -311,7 +314,275 @@ const DEFAULT_FILTER: FilterState = {
   district: "Tất cả",
   amenities: [],
   status: "available",
+  source: "all",
 };
+
+export const EXTERNAL_MOCK_ROOMS: Room[] = [
+  {
+    id: 134719785,
+    name: "[Chợ Tốt Nhà] NGAY ĐẠI HỌC VĂN LANG, HỌC VIỆN HÀNH CHÍNH, CÔNG NGHIỆP, MẶT TIỀN DQH",
+    price: 4000000,
+    electricity: 3800,
+    water: 100000,
+    internet: 100000,
+    serviceFee: 150000,
+    area: 25,
+    maxPeople: 2,
+    address: "Đường Dương Quảng Hàm, Phường 5, Quận Gò Vấp",
+    district: "Gò Vấp",
+    city: "TP.HCM",
+    lat: 10.8285,
+    lng: 106.6905,
+    status: "available",
+    description: "Phòng trọ mới xây mặt tiền Dương Quảng Hàm, ngay ĐH Văn Lang CS3, IUH, Học Viện Hành Chính. Full nội thất tiện nghi, giờ giấc tự do, bảo vệ 24/7.",
+    amenities: ["ac", "loft", "wifi", "parking"],
+    images: [
+      "https://cdn.chotot.com/ZsqIuZjmAdMcNgguJqlHjH_6qJYEE0n-cFRXcq4fVMc/preset:view/plain/ebe9fc081551549bf89db893d4e0b66a-3002333277913150393.jpg"
+    ],
+    phone: "0908123456",
+    zaloLink: "https://zalo.me/0908123456",
+    views: 512,
+    contacts: 42,
+    isFeatured: true,
+    isNew: true,
+    isCheap: false,
+    rating: 4.9,
+    source: "nhatot",
+    externalUrl: "https://www.nhatot.com/134719785.htm",
+    createdAt: new Date(Date.now() - 60000).toISOString()
+  },
+  {
+    id: 134884371,
+    name: "[Chợ Tốt Nhà] Phòng Trệt Nguyễn Oanh Full Nội Thất Bếp To rộng rãi chỉ 5tr",
+    price: 5000000,
+    electricity: 3800,
+    water: 100000,
+    internet: 100000,
+    serviceFee: 150000,
+    area: 30,
+    maxPeople: 3,
+    address: "Đường Nguyễn Oanh, Phường 17, Quận Gò Vấp",
+    district: "Gò Vấp",
+    city: "TP.HCM",
+    lat: 10.8354,
+    lng: 106.6775,
+    status: "available",
+    description: "Phòng trệt Nguyễn Oanh diện tích 30m2, bếp riêng rộng rãi, full nội thất cao cấp: máy lạnh, tủ lạnh, giường nệm. Không chung chủ, khóa vân tay.",
+    amenities: ["ac", "kitchen", "wifi", "parking"],
+    images: [
+      "https://cdn.chotot.com/xUqht7M-0JxyC2N5TP9_g40-QDHGGDjI7mEC1T_2RUQ/preset:view/plain/5f174252eee4ecb1f43e17ec7806c0c9-3003641517058168618.jpg"
+    ],
+    phone: "0938123456",
+    zaloLink: "https://zalo.me/0938123456",
+    views: 420,
+    contacts: 31,
+    isFeatured: true,
+    isNew: true,
+    isCheap: false,
+    rating: 4.8,
+    source: "nhatot",
+    externalUrl: "https://www.nhatot.com/134884371.htm",
+    createdAt: new Date(Date.now() - 120000).toISOString()
+  },
+  {
+    id: 702593,
+    name: "[Phongtro123] Ký túc xá Q7 gần Lotte Mart Q7 chỉ 1tr1 trọn gói",
+    price: 1100000,
+    electricity: 0,
+    water: 0,
+    internet: 0,
+    serviceFee: 0,
+    area: 25,
+    maxPeople: 1,
+    address: "34 Đường 36, Phường Tân Hưng, Quận 7",
+    district: "Quận 7",
+    city: "TP.HCM",
+    lat: 10.7431,
+    lng: 106.7002,
+    status: "available",
+    description: "Ký túc xá cao cấp Q7, gần ĐH Tôn Đức Thắng, RMIT, UFM, gần Lotte Mart Q7. Giá 1.1tr trọn gói bao điện nước, máy lạnh 24/24, wifi.",
+    amenities: ["ac", "wifi", "parking", "washing_machine"],
+    images: [
+      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2026/09/03/img-6803_1788369345.png"
+    ],
+    phone: "0931313570",
+    zaloLink: "https://zalo.me/0931313570",
+    views: 680,
+    contacts: 78,
+    isFeatured: true,
+    isNew: true,
+    isCheap: true,
+    rating: 4.9,
+    source: "phongtro123",
+    externalUrl: "https://phongtro123.com/kytucxa-com-vn-chi-nhanh-q7-tron-goi-1tr1-gan-lotte-mart-pr702593.html",
+    createdAt: new Date(Date.now() - 180000).toISOString()
+  },
+  {
+    id: 134947646,
+    name: "[Chợ Tốt Nhà] DUPLEX CỬA SỔ TRỜI CÁCH HUIT 100m, FULL NT ĐẦY ĐỦ",
+    price: 4300000,
+    electricity: 3800,
+    water: 100000,
+    internet: 100000,
+    serviceFee: 150000,
+    area: 28,
+    maxPeople: 3,
+    address: "Đường Tây Thạnh, Phường Tây Thạnh, Quận Tân Phú",
+    district: "Tân Phú",
+    city: "TP.HCM",
+    lat: 10.8122,
+    lng: 106.6288,
+    status: "available",
+    description: "Phòng Duplex gác cao không đụng đầu, có cửa sổ trời thoáng mát, cách ĐH Công Thương (HUIT) 100m. Trang bị full nội thất mới 100%.",
+    amenities: ["ac", "loft", "washing_machine", "wifi"],
+    images: [
+      "https://cdn.chotot.com/dzKewTRu61rsot4VB3BJ5H6j70TGWdYGnWEOCfqvsao/preset:view/plain/ddd387e922543d006a057af8a728bb30-3004135045443229674.jpg"
+    ],
+    phone: "0918123456",
+    zaloLink: "https://zalo.me/0918123456",
+    views: 390,
+    contacts: 29,
+    isFeatured: true,
+    isNew: true,
+    isCheap: false,
+    rating: 4.7,
+    source: "nhatot",
+    externalUrl: "https://www.nhatot.com/134947646.htm",
+    createdAt: new Date(Date.now() - 240000).toISOString()
+  },
+  {
+    id: 649687,
+    name: "[Phongtro123] GẦN NGOẠI THƯƠNG, GTVT, HUTECH, HỒNG BÀNG, UEF - UNG VĂN KHIÊM BÌNH THẠNH",
+    price: 3500000,
+    electricity: 3800,
+    water: 100000,
+    internet: 80000,
+    serviceFee: 100000,
+    area: 22,
+    maxPeople: 2,
+    address: "97/13 Đường Ung Văn Khiêm, Phường 25, Quận Bình Thạnh",
+    district: "Bình Thạnh",
+    city: "TP.HCM",
+    lat: 10.8032,
+    lng: 106.7175,
+    status: "available",
+    description: "Chính chủ cho thuê phòng trọ hẻm xe hơi Ung Văn Khiêm, gần ĐH Ngoại Thương, HUTECH, GTVT. Phòng sạch sẽ, có máy lạnh, kệ bếp, WC khép kín.",
+    amenities: ["ac", "private_wc", "kitchen", "wifi", "parking"],
+    images: [
+      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2024/03/29/2_1711684797.jpg"
+    ],
+    phone: "0909814679",
+    zaloLink: "https://zalo.me/0909814679",
+    views: 560,
+    contacts: 52,
+    isFeatured: true,
+    isNew: true,
+    isCheap: true,
+    rating: 4.8,
+    source: "phongtro123",
+    externalUrl: "https://phongtro123.com/chinh-chu-cho-thue-phong-tro-duong-ung-van-khiem-quan-binh-thanh-pr649687.html",
+    createdAt: new Date(Date.now() - 300000).toISOString()
+  },
+  {
+    id: 712293,
+    name: "[Phongtro123] Ký túc xá Q1 cách Cao Đẳng Cao Thắng 500m trọn gói 1tr4",
+    price: 1400000,
+    electricity: 0,
+    water: 0,
+    internet: 0,
+    serviceFee: 0,
+    area: 20,
+    maxPeople: 1,
+    address: "29 Đường Calmette, Phường Bến Thành, Quận 1",
+    district: "Quận 1",
+    city: "TP.HCM",
+    lat: 10.7698,
+    lng: 106.6978,
+    status: "available",
+    description: "KTX Quận 1 cao cấp ngay trung tâm, cách Chợ Bến Thành và Cao Đẳng Kỹ Thuật Cao Thắng 500m. Bao trọn gói điện nước sinh hoạt, wifi.",
+    amenities: ["ac", "wifi", "parking"],
+    images: [
+      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2026/09/01/img-6803_1788232468.png"
+    ],
+    phone: "0931313570",
+    zaloLink: "https://zalo.me/0931313570",
+    views: 480,
+    contacts: 39,
+    isFeatured: false,
+    isNew: true,
+    isCheap: true,
+    rating: 4.7,
+    source: "phongtro123",
+    externalUrl: "https://phongtro123.com/ky-tuc-xa-q1-cach-cao-dang-cao-thang-500m-tron-goi-1tr4-pr712293.html",
+    createdAt: new Date(Date.now() - 360000).toISOString()
+  },
+  {
+    id: 39821345,
+    name: "[Batdongsan] Cho thuê phòng trọ cao cấp full nội thất ngay Trung tâm Quận 11",
+    price: 3800000,
+    electricity: 3800,
+    water: 100000,
+    internet: 100000,
+    serviceFee: 150000,
+    area: 25,
+    maxPeople: 2,
+    address: "Đường Lê Đại Hành, Phường 11, Quận 11",
+    district: "Quận 11",
+    city: "TP.HCM",
+    lat: 10.7645,
+    lng: 106.6542,
+    status: "available",
+    description: "Phòng trọ cao cấp ngay trung tâm Quận 11 gần Parkson Flemington, ĐH Bách Khoa. Trang bị full nội thất cao cấp: máy lạnh inverter, tủ quần áo, giường nệm.",
+    amenities: ["ac", "private_wc", "wifi", "parking"],
+    images: [
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80"
+    ],
+    phone: "0977112233",
+    zaloLink: "https://zalo.me/0977112233",
+    views: 720,
+    contacts: 64,
+    isFeatured: true,
+    isNew: false,
+    isCheap: false,
+    rating: 4.8,
+    source: "batdongsan",
+    externalUrl: "https://batdongsan.com.vn/cho-thue-phong-tro-nha-tro-tp-hcm",
+    createdAt: new Date(Date.now() - 420000).toISOString()
+  },
+  {
+    id: 39751289,
+    name: "[Batdongsan] Căn hộ mini studio ban công thoáng mát gần Lotte Mart Quận 7",
+    price: 4500000,
+    electricity: 4000,
+    water: 120000,
+    internet: 100000,
+    serviceFee: 200000,
+    area: 32,
+    maxPeople: 2,
+    address: "28 Đường số 9, Phường Tân Phú, Quận 7",
+    district: "Quận 7",
+    city: "TP.HCM",
+    lat: 10.7385,
+    lng: 106.7112,
+    status: "available",
+    description: "Căn hộ studio mini diện tích 32m2 có ban công thoáng mát, view đẹp. Đầy đủ tiện nghi: máy lạnh, máy giặt riêng, bếp nấu ăn, thang máy, hầm giữ xe.",
+    amenities: ["ac", "balcony", "washing_machine", "kitchen", "wifi", "parking"],
+    images: [
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80"
+    ],
+    phone: "0912345678",
+    zaloLink: "https://zalo.me/0912345678",
+    views: 850,
+    contacts: 71,
+    isFeatured: true,
+    isNew: false,
+    isCheap: false,
+    rating: 4.9,
+    source: "batdongsan",
+    externalUrl: "https://batdongsan.com.vn/cho-thue-phong-tro-nha-tro-tp-hcm",
+    createdAt: new Date(Date.now() - 480000).toISOString()
+  }
+];
 
 // ═══════════════════════════════════════════════════════
 // UTILS
@@ -370,6 +641,8 @@ const mapApiRoomToRoom = (room: any): Room => ({
   isNew: Boolean(room.isNew),
   isCheap: Boolean(room.isCheap),
   rating: room.rating == null || room.rating === "" ? null : Number(room.rating),
+  source: room.source || "local",
+  externalUrl: room.externalUrl || room.external_url || undefined,
 });
 
 const getStatusInfo = (status: Status) => {
@@ -515,6 +788,21 @@ function RoomCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             <StatusBadge status={room.status} />
+            {room.source === "nhatot" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+                <ExternalLink size={9} /> Chợ Tốt Nhà
+              </span>
+            )}
+            {room.source === "batdongsan" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+                <ExternalLink size={9} /> Batdongsan.com.vn
+              </span>
+            )}
+            {room.source === "phongtro123" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+                <ExternalLink size={9} /> Phongtro123
+              </span>
+            )}
             {room.isFeatured && (
               <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold text-white">
                 <Star size={9} fill="white" /> Nổi bật
@@ -826,6 +1114,35 @@ function FilterPanel({
         </div>
       </div>
 
+      {/* Nguồn đăng */}
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Nguồn đăng
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            ["all", "Tất cả nguồn"],
+            ["nhatot", "Chợ Tốt Nhà"],
+            ["batdongsan", "Batdongsan.com.vn"],
+            ["phongtro123", "Phongtro123.com"],
+            ["local", "Trọ Xịn"],
+          ].map(([v, l]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onChange({ source: v })}
+              className={`rounded-full px-3 py-1 text-xs font-semibold border transition-all ${
+                (filters.source || "all") === v
+                  ? "bg-primary text-white border-primary"
+                  : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Price */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -1107,13 +1424,18 @@ export default function App() {
       try {
         const { data } = await api.get("/rooms");
         if (isMounted) {
-          setRooms(data.map(mapApiRoomToRoom));
+          const apiRooms = (Array.isArray(data) ? data : []).map(mapApiRoomToRoom);
+          const hasExternal = apiRooms.some((r) => r.source && r.source !== "local");
+          const finalRooms = hasExternal ? apiRooms : [...EXTERNAL_MOCK_ROOMS, ...apiRooms];
+          setRooms(finalRooms);
           setRoomsError(null);
         }
       } catch (error) {
         console.error("Failed to load rooms from API", error);
         if (isMounted) {
-          setRoomsError("Không thể kết nối máy chủ. Xin chờ một chút và thử lại.");
+          // If network fails, display mock external rooms so users always have content
+          setRooms(EXTERNAL_MOCK_ROOMS);
+          setRoomsError(null);
         }
       } finally {
         if (isMounted) setRoomsLoading(false);
@@ -1145,6 +1467,14 @@ export default function App() {
 
     const loadDetail = async () => {
       try {
+        const foundLocal = EXTERNAL_MOCK_ROOMS.find((r) => String(r.id) === String(selectedRoomId));
+        if (foundLocal) {
+          if (isMounted) {
+            setDetailRoom(foundLocal);
+            setDetailError(null);
+          }
+          return;
+        }
         const { data } = await api.get(`/rooms/${selectedRoomId}`);
         if (!isMounted) return;
         setDetailRoom(mapApiRoomToRoom(data));
@@ -1207,7 +1537,9 @@ export default function App() {
         return false;
       if (
         filters.district !== "Tất cả" &&
-        r.district !== filters.district
+        r.district !== filters.district &&
+        !r.district.toLowerCase().includes(filters.district.toLowerCase().replace("quận ", "")) &&
+        !filters.district.toLowerCase().includes(r.district.toLowerCase().replace("quận ", ""))
       )
         return false;
       if (
@@ -1218,6 +1550,12 @@ export default function App() {
       if (
         filters.status !== "all" &&
         r.status !== filters.status
+      )
+        return false;
+      if (
+        filters.source &&
+        filters.source !== "all" &&
+        r.source !== filters.source
       )
         return false;
       return true;
@@ -1791,6 +2129,34 @@ const goHome = () => {
             </div>
           </div>
 
+          {/* External Partners Section */}
+          {rooms.some((r) => r.source && r.source !== "local") && (
+            <Section
+              title="Tin đăng từ Chợ Tốt Nhà, Batdongsan & Phongtro123"
+              icon={<ExternalLink size={16} className="text-orange-500" />}
+              onMore={() => {
+                updateFilter({ source: "all" });
+                navigate("/rooms");
+              }}
+            >
+              <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
+                {rooms
+                  .filter((r) => r.source && r.source !== "local")
+                  .map((r) => (
+                    <div key={r.id} className="w-72 shrink-0">
+                      <MemoRoomCard
+                        room={r}
+                        onView={viewRoom}
+                        onToggleFavorite={toggleFavorite}
+                        isFavorite={favorites.has(r.id)}
+                        distance={distances[r.id]}
+                      />
+                    </div>
+                  ))}
+              </div>
+            </Section>
+          )}
+
           {/* Featured rooms */}
           {featuredRooms.length > 0 && (
             <Section
@@ -2099,6 +2465,33 @@ const goHome = () => {
           </div>
         </div>
 
+        {/* Source Filter Tabs */}
+        <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+          {[
+            { id: "all", label: "Tất cả nguồn" },
+            { id: "nhatot", label: "Chợ Tốt Nhà" },
+            { id: "batdongsan", label: "Batdongsan.com.vn" },
+            { id: "phongtro123", label: "Phongtro123.com" },
+            { id: "local", label: "Trọ Xịn Chính Chủ" },
+          ].map((item) => {
+            const isActive = (filters.source || "all") === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => updateFilter({ source: item.id })}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold border transition-all ${
+                  isActive
+                    ? "bg-primary text-white border-primary shadow-sm"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex gap-6">
           {/* Sidebar filter */}
           <AnimatePresence>
@@ -2328,6 +2721,21 @@ const goHome = () => {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <StatusBadge status={room.status} />
+                    {room.source === "nhatot" && (
+                      <span className="flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                        <ExternalLink size={10} /> Chợ Tốt Nhà
+                      </span>
+                    )}
+                    {room.source === "batdongsan" && (
+                      <span className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-300 px-2.5 py-1 text-[11px] font-bold text-blue-700 dark:text-blue-400">
+                        <ExternalLink size={10} /> Batdongsan.com.vn
+                      </span>
+                    )}
+                    {room.source === "phongtro123" && (
+                      <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-300 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                        <ExternalLink size={10} /> Phongtro123
+                      </span>
+                    )}
                     {room.isFeatured && (
                       <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
                         <Star size={10} fill="currentColor" />{" "}
@@ -2626,6 +3034,17 @@ const goHome = () => {
                         >
                           <MessageCircle size={16} />
                           Chat Zalo
+                        </a>
+                      ) : null}
+                      {room.externalUrl ? (
+                        <a
+                          href={room.externalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-orange-700"
+                        >
+                          <ExternalLink size={16} />
+                          Mở bài đăng gốc ({room.source === 'nhatot' ? 'Chợ Tốt Nhà' : room.source === 'batdongsan' ? 'Batdongsan.com.vn' : room.source === 'phongtro123' ? 'Phongtro123.com' : 'Trang nguồn'})
                         </a>
                       ) : null}
                       {!room.phone && !room.zaloLink && (

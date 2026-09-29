@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-function normalizeApiBase(url: string): string {
+export function normalizeApiBase(url: string | undefined): string {
   const raw = String(url || '').trim().replace(/\/+$/, '');
   if (!raw) {
     return import.meta.env.PROD

@@ -1,5 +1,8 @@
 package com.smartroomsearch.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,7 +10,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,136 +31,227 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
     val rooms by viewModel.rooms.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
-    
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedDistrict by remember { mutableStateOf("Tất cả") }
 
     val filteredRooms = rooms.filter {
-        (selectedDistrict == "Tất cả" || it.district == selectedDistrict) &&
+        (selectedDistrict == "Tất cả" ||
+         it.district.equals(selectedDistrict, ignoreCase = true) ||
+         it.district.contains(selectedDistrict, ignoreCase = true) ||
+         selectedDistrict.contains(it.district, ignoreCase = true)) &&
         (searchQuery.isEmpty() || it.title.contains(searchQuery, ignoreCase = true) || it.address.contains(searchQuery, ignoreCase = true))
     }
 
+    val featuredRooms = filteredRooms.filter { it.isFeatured }
+    val newRooms = filteredRooms.filter { it.isNew || !it.isFeatured }
+
     Scaffold(
         topBar = {
-            Column(Modifier.background(MaterialTheme.colorScheme.surface).padding(bottom = 8.dp)) {
-                HomeTopBar(searchQuery) { searchQuery = it }
-                DistrictFilter(selectedDistrict) { selectedDistrict = it }
+            Column(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(bottom = 12.dp)
+            ) {
+                HomeHeader()
+                AppSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Tìm quận, địa chỉ, tên đường...",
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                HomeDistrictChips(
+                    selected = selectedDistrict,
+                    onSelected = { selectedDistrict = it }
+                )
             }
         }
     ) { padding ->
         if (isLoading && rooms.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
+        } else if (filteredRooms.isEmpty()) {
+            EmptyState(
+                icon = Icons.Default.Search,
+                title = "Không tìm thấy phòng phù hợp",
+                description = "Thử đổi từ khóa hoặc chọn quận/huyện khác xem sao bạn nhé!",
+                actionLabel = "Đặt lại bộ lọc",
+                onActionClick = {
+                    searchQuery = ""
+                    selectedDistrict = "Tất cả"
+                },
+                modifier = Modifier.padding(padding)
+            )
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(padding),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                item { HeroSection() }
-                
-                item {
-                    SectionHeader("Phòng nổi bật")
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(filteredRooms.filter { it.isFeatured }) { room ->
-                            Box(modifier = Modifier.width(280.dp)) {
-                                RoomCard(
-                                    room = room,
-                                    isFavorite = favorites.any { it.id == room.id },
-                                    onFavoriteClick = { viewModel.toggleFavorite(room) },
-                                    onClick = { onRoomClick(room.id) }
-                                )
+                item { HeroBanner() }
+
+                val partnerRooms = filteredRooms.filter { it.source != null && it.source != "local" }
+                if (partnerRooms.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = "Tin Đăng Đối Tác",
+                            subtitle = "Cập nhật thời gian thực từ Chợ Tốt Nhà, Batdongsan & Phongtro123"
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(partnerRooms) { room ->
+                                Box(modifier = Modifier.width(290.dp)) {
+                                    RoomCard(
+                                        room = room,
+                                        isFavorite = favorites.any { it.id == room.id },
+                                        onFavoriteClick = { viewModel.toggleFavorite(room) },
+                                        onClick = { onRoomClick(room.id) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (featuredRooms.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = "Phòng Nổi Bật",
+                            subtitle = "Các phòng chất lượng cao được ưu tiên chọn nhiều nhất"
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(featuredRooms) { room ->
+                                Box(modifier = Modifier.width(290.dp)) {
+                                    RoomCard(
+                                        room = room,
+                                        isFavorite = favorites.any { it.id == room.id },
+                                        onFavoriteClick = { viewModel.toggleFavorite(room) },
+                                        onClick = { onRoomClick(room.id) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
                 item {
-                    SectionHeader("Mới đăng")
-                    Column(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        filteredRooms.filter { it.isNew }.take(10).forEach { room ->
-                            RoomCard(
-                                room = room,
-                                isFavorite = favorites.any { it.id == room.id },
-                                onFavoriteClick = { viewModel.toggleFavorite(room) },
-                                onClick = { onRoomClick(room.id) }
-                            )
-                        }
+                    SectionHeader(
+                        title = "Danh Sách Phòng Mới",
+                        subtitle = "Tin đăng phòng trọ mới nhất tại TP.HCM"
+                    )
+                }
+
+                items(newRooms) { room ->
+                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                        RoomCard(
+                            room = room,
+                            isFavorite = favorites.any { it.id == room.id },
+                            onFavoriteClick = { viewModel.toggleFavorite(room) },
+                            onClick = { onRoomClick(room.id) }
+                        )
                     }
                 }
-                
-                item { Spacer(modifier = Modifier.height(32.dp)) }
             }
         }
     }
 }
 
 @Composable
-fun HomeTopBar(query: String, onQueryChange: (String) -> Unit) {
+fun HomeHeader() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "TrọXịn",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 16.dp)
-        )
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            placeholder = { Text("Tìm quận, địa chỉ...", fontSize = 14.sp) },
-            modifier = Modifier.weight(1f).height(48.dp),
-            leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp)) },
-            shape = RoundedCornerShape(12.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+        Column {
+            Text(
+                text = "TrọXịn",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = (-0.5).sp
             )
-        )
+            Text(
+                text = "Tìm phòng trọ TP.HCM dễ dàng",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "TP.HCM",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun DistrictFilter(selected: String, onSelected: (String) -> Unit) {
-    val districts = listOf("Tất cả", "Quận 1", "Quận 3", "Quận 7", "Bình Thạnh", "Gò Vấp", "Tân Bình")
+fun HomeDistrictChips(selected: String, onSelected: (String) -> Unit) {
+    val districts = listOf("Tất cả", "Quận 1", "Quận 3", "Quận 7", "Quận 10", "Bình Thạnh", "Gò Vấp", "Tân Bình", "Phú Nhuận", "Tân Phú")
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(districts) { district ->
+            val isSelected = selected == district
             FilterChip(
-                selected = selected == district,
+                selected = isSelected,
                 onClick = { onSelected(district) },
-                label = { Text(district) },
-                shape = RoundedCornerShape(8.dp)
+                label = {
+                    Text(
+                        text = district,
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                },
+                shape = RoundedCornerShape(10.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     }
 }
 
 @Composable
-fun HeroSection() {
+fun HeroBanner() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
-            .padding(16.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(170.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(20.dp))
     ) {
         AsyncImage(
             model = "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
@@ -168,7 +264,7 @@ fun HeroSection() {
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                     )
                 )
         )
@@ -178,27 +274,27 @@ fun HeroSection() {
                 .padding(16.dp),
             verticalArrangement = Arrangement.Bottom
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = BrandPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Ưu đãi phòng trọ mới nhất",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Text(
-                text = "Tìm phòng trọ TP.HCM",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Hơn 500 phòng trống giá tốt",
-                color = Color.White.copy(alpha = 0.8f),
-                fontSize = 12.sp
+                text = "Hàng trăm phòng trọ chính chủ, đầy đủ tiện nghi với giá hợp lý",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
     }
-}
-
-@Composable
-fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        modifier = Modifier.padding(16.dp),
-        fontSize = 18.sp,
-        fontWeight = FontWeight.ExtraBold
-    )
 }

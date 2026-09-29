@@ -5,6 +5,7 @@ import { readJsonFile, writeJsonFile } from '../config/jsonDb.js';
 import { broadcastRoomsChange } from '../utils/events.js';
 import { recordTenantDeletion } from './tenantHistoryModel.js';
 import { isPlaceholderCoords, resolveRoomCoordinates } from '../utils/geocodeService.js';
+import { fetchExternalRooms, getExternalRoomById } from '../services/externalRoomsService.js';
 
 const dbUnavailable = () => {
   if (isWorkers && !pool) {
@@ -65,6 +66,8 @@ const mapRow = (row) => ({
   isNew: Number(row.is_new) === 1,
   isCheap: Number(row.is_cheap) === 1,
   rating: Number(row.rating ?? 4.5),
+  source: row.source || 'local',
+  externalUrl: row.external_url || row.externalUrl || null,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -130,7 +133,9 @@ export const getAllRooms = async (filters = {}) => {
     if (filters.areaMax !== undefined && filters.areaMax !== '' && Number(filters.areaMax) < 100) params.areaMax = Number(filters.areaMax);
     if (filters.search) params.search = filters.search;
     const { rows } = await tidb('/rooms', { method: 'GET', params });
-    return rows.map((row) => mapRow(row));
+    const localRooms = rows.map((row) => mapRow(row));
+    const extRooms = await fetchExternalRooms(filters);
+    return [...localRooms, ...extRooms];
   }
 
   if ((!isReady || isMockMode || !pool) && !isWorkers) {
@@ -165,7 +170,9 @@ export const getAllRooms = async (filters = {}) => {
       );
     }
 
-    return result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    const extRooms = await fetchExternalRooms(filters);
+    const combined = [...result, ...extRooms];
+    return combined.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }
 
   let query = 'SELECT * FROM rooms';
@@ -210,19 +217,26 @@ export const getAllRooms = async (filters = {}) => {
 
   dbUnavailable();
   const [rows] = await pool.query(query, values);
-  return Promise.all(rows.map((row) => syncRoomCoords(row)));
+  const localRooms = await Promise.all(rows.map((row) => syncRoomCoords(row)));
+  const extRooms = await fetchExternalRooms(filters);
+  const combined = [...localRooms, ...extRooms];
+  return combined.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 };
 
 export const getRoomById = async (id) => {
+  if (String(id).startsWith('ext_')) {
+    return getExternalRoomById(id);
+  }
+
   if (isDataService()) {
     const { rows } = await tidb('/rooms/{id}', { method: 'GET', params: { id } });
-    if (!rows[0]) return null;
+    if (!rows[0]) return getExternalRoomById(id);
     return mapRow(rows[0]);
   }
 
   if ((!isReady || isMockMode || !pool) && !isWorkers) {
-    const raw = getRooms().find((room) => room.id === Number(id));
-    if (!raw) return null;
+    const raw = getRooms().find((room) => String(room.id) === String(id));
+    if (!raw) return getExternalRoomById(id);
     const { room: fixed, changed } = await resolveRoomCoordinates(mapRow(raw));
     if (changed) persistMockRoomCoords(raw, fixed.lat, fixed.lng);
     return fixed;
@@ -230,7 +244,7 @@ export const getRoomById = async (id) => {
 
   dbUnavailable();
   const [rows] = await pool.query('SELECT * FROM rooms WHERE id = ?', [id]);
-  if (!rows[0]) return null;
+  if (!rows[0]) return getExternalRoomById(id);
   return syncRoomCoords(rows[0]);
 };
 

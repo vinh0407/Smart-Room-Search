@@ -33,6 +33,8 @@ data class Room(
     val isNew: Boolean = false,
     val isCheap: Boolean = false,
     val rating: Double = 4.5,
+    val source: String? = "local",
+    @SerializedName("external_url") val externalUrl: String? = null,
     @SerializedName("created_at") val createdAt: String?,
     @SerializedName("updated_at") val updatedAt: String?
 )
@@ -96,15 +98,15 @@ data class TenantHistory(
 )
 
 data class RoomDemand(
-    val id: Int,
-    @SerializedName("full_name") val fullName: String,
-    val phone: String,
-    val gender: String?,
-    val district: String?,
-    @SerializedName("max_price") val maxPrice: Double?,
+    val id: Int = 0,
+    @SerializedName("full_name") val fullName: String? = null,
+    val phone: String? = null,
+    val gender: String? = null,
+    val district: String? = null,
+    @SerializedName("max_price") val maxPrice: Double? = null,
     @SerializedName("people_count") val peopleCount: Int = 1,
-    val note: String?,
-    @SerializedName("created_at") val createdAt: String?
+    val note: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null
 )
 
 data class LoginResponse(

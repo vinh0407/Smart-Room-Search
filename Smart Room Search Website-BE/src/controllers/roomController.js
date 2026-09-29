@@ -1,4 +1,5 @@
 import { isMockMode } from '../config/db.js';
+import { clearRoomsCache } from '../middleware/cacheMiddleware.js';
 import {
   getAllRooms,
   getRoomById,
@@ -52,6 +53,7 @@ export const addRoom = async (req, res) => {
     };
 
     const newRoom = await createRoom(roomPayload);
+    clearRoomsCache();
     return res.status(201).json(newRoom);
   } catch (error) {
     console.error('[rooms] create failed:', error);
@@ -67,6 +69,7 @@ export const editRoom = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy phòng' });
     }
 
+    clearRoomsCache();
     return res.status(200).json(updatedRoom);
   } catch (error) {
     console.error('[rooms] update failed:', error);
@@ -82,6 +85,7 @@ export const removeRoom = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy phòng' });
     }
 
+    clearRoomsCache();
     return res.status(200).json({ message: 'Xóa phòng thành công' });
   } catch (error) {
     console.error('[rooms] delete failed:', error);
@@ -96,6 +100,7 @@ export const bulkRemoveRooms = async (req, res) => {
       return res.status(400).json({ message: 'Danh sách ID phòng cần xóa không hợp lệ' });
     }
     const result = await bulkDeleteRooms(ids);
+    clearRoomsCache();
     return res.status(200).json({ message: `Đã xóa ${result.count} phòng thành công`, count: result.count });
   } catch (error) {
     console.error('[rooms] bulk delete failed:', error);
@@ -113,6 +118,7 @@ export const changeRoomStatus = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy phòng' });
     }
 
+    clearRoomsCache();
     return res.status(200).json(updatedRoom);
   } catch (error) {
     console.error('[rooms] status update failed:', error);

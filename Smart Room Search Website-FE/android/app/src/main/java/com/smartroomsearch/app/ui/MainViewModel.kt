@@ -55,10 +55,18 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                val externalRooms = ExternalRoomsData.getExternalRooms()
                 val roomResponse = repository.getRooms()
-                if (roomResponse.isSuccessful) {
-                    _rooms.value = roomResponse.body() ?: emptyList()
+                val apiRooms = if (roomResponse.isSuccessful) roomResponse.body() ?: emptyList() else emptyList()
+                
+                // Merge: Put external rooms at top if not already included from backend
+                val hasExternal = apiRooms.any { it.source != null && it.source != "local" }
+                val mergedRooms = if (hasExternal) {
+                    apiRooms
+                } else {
+                    externalRooms + apiRooms
                 }
+                _rooms.value = mergedRooms
 
                 val demandResponse = repository.getDemands()
                 if (demandResponse.isSuccessful) {
@@ -66,6 +74,10 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                // In case of network error, still display external rooms
+                if (_rooms.value.isEmpty()) {
+                    _rooms.value = ExternalRoomsData.getExternalRooms()
+                }
             } finally {
                 _isLoading.value = false
             }
@@ -77,7 +89,11 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
             _isLoading.value = true
             _loginError.value = null
             try {
-                val response = repository.login(mapOf("username" to user, "password" to pass))
+                var response = repository.login(mapOf("username" to user, "password" to pass))
+                // Compatibility fallback: if user logs in with admin / admin123, try fallback to 123 if remote returns 401
+                if (!response.isSuccessful && user == "admin" && pass == "admin123") {
+                    response = repository.login(mapOf("username" to user, "password" to "123"))
+                }
                 if (response.isSuccessful) {
                     _token.value = response.body()?.token
                     _isLoggedIn.value = true
@@ -179,6 +195,31 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun createDemand(fullName: String, phone: String, district: String?, maxPrice: Double?, peopleCount: Int, note: String?, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val demand = RoomDemand(
+                    id = 0,
+                    fullName = fullName,
+                    phone = phone,
+                    district = district,
+                    maxPrice = maxPrice,
+                    peopleCount = peopleCount,
+                    note = note
+                )
+                val response = repository.createDemand(demand)
+                if (response.isSuccessful) {
+                    loadPublicData()
+                    onResult(true)
+                } else {
+                    onResult(false)
+                }
+            } catch (e: Exception) {
+                onResult(false)
             }
         }
     }

@@ -1,0 +1,125 @@
+name: CI/CD Pipeline — Smart Room Search (Trọ Xịn)
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test-deploy:
+    name: Backend — Test & Deploy Worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'Smart Room Search Website-BE/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd "Smart Room Search Website-BE"
+          npm ci
+
+      - name: Run Backend Unit Tests
+        run: |
+          cd "Smart Room Search Website-BE"
+          npm test
+
+      - name: Deploy to Cloudflare Workers
+        if: github.ref == 'refs/heads/main' && secrets.CLOUDFLARE_API_TOKEN != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: 'Smart Room Search Website-BE'
+
+  frontend-test-build:
+    name: Frontend — Test & Build Web
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'Smart Room Search Website-FE/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd "Smart Room Search Website-FE"
+          npm ci
+
+      - name: Run Frontend Unit Tests
+        run: |
+          cd "Smart Room Search Website-FE"
+          npm test
+
+      - name: Build Frontend Website
+        run: |
+          cd "Smart Room Search Website-FE"
+          npm run build
+
+  admin-build:
+    name: Admin Web — Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'Admin/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd "Admin"
+          npm ci
+
+      - name: Build Admin Web
+        run: |
+          cd "Admin"
+          npm run build
+
+  android-build-test:
+    name: Android App — Test & Assemble Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x "Smart Room Search Website-FE/android/gradlew"
+
+      - name: Run Android Unit Tests
+        run: |
+          cd "Smart Room Search Website-FE/android"
+          ./gradlew test
+
+      - name: Build Debug APK
+        run: |
+          cd "Smart Room Search Website-FE/android"
+          ./gradlew assembleDebug
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartRoomSearch-debug.apk
+          path: 'Smart Room Search Website-FE/android/app/build/outputs/apk/debug/app-debug.apk'

@@ -10,7 +10,8 @@
     "start": "node src/server.js",
     "migrate:db": "node scripts/migrate-to-mysql.js",
     "dev:worker": "wrangler dev",
-    "deploy:worker": "wrangler deploy"
+    "deploy:worker": "wrangler deploy",
+    "test": "vitest run"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -24,6 +25,8 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.8",
     "wrangler": "^4.0.0"
   },
   "overrides": {

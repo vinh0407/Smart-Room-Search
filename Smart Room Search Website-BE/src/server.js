@@ -273,6 +273,8 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+import { cacheRoomsMiddleware } from './middleware/cacheMiddleware.js';
+
 /* =========================
    ROOM ROUTES
 ========================= */
@@ -282,7 +284,7 @@ app.get('/api/rooms/version', getRoomsVersion);
 
 app.get('/api/rooms/stats', authenticate, requireAdmin, stats);
 
-app.get('/api/rooms', listRooms);
+app.get('/api/rooms', cacheRoomsMiddleware(), listRooms);
 
 app.get('/api/rooms/:id', getRoom);
 
