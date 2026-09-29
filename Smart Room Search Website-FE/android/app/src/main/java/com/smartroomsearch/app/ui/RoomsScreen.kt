@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,35 +22,69 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smartroomsearch.app.model.Room
 import com.smartroomsearch.app.model.RoomStatus
+import com.smartroomsearch.app.model.LocationsData
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
     val rooms by viewModel.rooms.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
+    val selectedCity by viewModel.selectedCity.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Tất cả khu vực") }
     var selectedDistrict by remember { mutableStateOf("Tất cả") }
+    var selectedWard by remember { mutableStateOf("Tất cả phường") }
     var priceFilter by remember { mutableStateOf("Tất cả") }
     var selectedStatus by remember { mutableStateOf("Tất cả") }
     var selectedAmenities by remember { mutableStateOf(setOf<String>()) }
     var selectedSource by remember { mutableStateOf("Tất cả") }
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showCityDialog by remember { mutableStateOf(false) }
 
-    val districts = listOf("Tất cả", "Quận 1", "Quận 3", "Quận 7", "Quận 10", "Bình Thạnh", "Gò Vấp", "Tân Bình", "Phú Nhuận", "Tân Phú")
+    if (showCityDialog) {
+        CitySelectionDialog(
+            currentCity = selectedCity,
+            onCitySelected = {
+                viewModel.selectCity(it)
+                selectedCategory = "Tất cả khu vực"
+                selectedDistrict = "Tất cả"
+                selectedWard = "Tất cả phường"
+            },
+            onDismiss = { showCityDialog = false }
+        )
+    }
+
+    val categoryOptions = listOf("Tất cả khu vực", "Trung tâm", "Phía Đông", "Phía Tây", "Phía Nam", "Ngoại thành")
     val priceOptions = listOf("Tất cả", "< 3 triệu", "3 - 5 triệu", "5 - 8 triệu", "> 8 triệu")
-    val sourceOptions = listOf("Tất cả", "Chợ Tốt Nhà", "Batdongsan", "Phongtro123")
+    val sourceOptions = listOf("Tất cả", "✨ Chính chủ (Web tôi)", "Chợ Tốt Nhà", "Batdongsan", "Phongtro123")
     val amenityOptions = listOf("wifi", "máy lạnh", "tủ lạnh", "máy giặt", "ban công", "gác lửng", "bãi xe", "bảo vệ 24/7")
 
     val filteredRooms = rooms.filter { room ->
+        val matchCity = selectedCity == "Tất cả" ||
+                room.city.contains(selectedCity, ignoreCase = true) ||
+                selectedCity.contains(room.city, ignoreCase = true) ||
+                (selectedCity == "TP.HCM" && (room.city.contains("Hồ Chí Minh", ignoreCase = true) || room.city.contains("HCM", ignoreCase = true)))
+
         val matchQuery = searchQuery.isEmpty() ||
                 room.title.contains(searchQuery, ignoreCase = true) ||
                 room.address.contains(searchQuery, ignoreCase = true)
+
+        val matchCategory = when (selectedCategory) {
+            "Tất cả khu vực" -> true
+            else -> {
+                val cat = LocationsData.DISTRICT_CATEGORIES.firstOrNull { it.name.contains(selectedCategory, ignoreCase = true) }
+                cat?.districts?.any { d -> room.district.contains(d, ignoreCase = true) || d.contains(room.district, ignoreCase = true) } ?: true
+            }
+        }
 
         val matchDistrict = selectedDistrict == "Tất cả" ||
                 room.district.equals(selectedDistrict, ignoreCase = true) ||
                 room.district.contains(selectedDistrict, ignoreCase = true) ||
                 selectedDistrict.contains(room.district, ignoreCase = true)
+
+        val matchWard = selectedWard == "Tất cả phường" ||
+                room.address.contains(selectedWard, ignoreCase = true)
 
         val matchPrice = when (priceFilter) {
             "< 3 triệu" -> room.price < 3000000
@@ -64,6 +100,7 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
         }
 
         val matchSource = when (selectedSource) {
+            "✨ Chính chủ (Web tôi)" -> room.source == null || room.source == "local" || room.source == ""
             "Chợ Tốt Nhà" -> room.source?.lowercase() == "nhatot"
             "Batdongsan" -> room.source?.lowercase() == "batdongsan"
             "Phongtro123" -> room.source?.lowercase() == "phongtro123"
@@ -74,23 +111,71 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
             room.amenities.any { it.contains(target, ignoreCase = true) }
         }
 
-        matchQuery && matchDistrict && matchPrice && matchStatus && matchAmenities && matchSource
+        matchCity && matchQuery && matchCategory && matchDistrict && matchWard && matchPrice && matchStatus && matchAmenities && matchSource
     }
 
-    val activeFiltersCount = (if (selectedDistrict != "Tất cả") 1 else 0) +
+    val activeFiltersCount = (if (selectedCategory != "Tất cả khu vực") 1 else 0) +
+            (if (selectedDistrict != "Tất cả") 1 else 0) +
+            (if (selectedWard != "Tất cả phường") 1 else 0) +
+            (if (selectedSource != "Tất cả") 1 else 0) +
             (if (priceFilter != "Tất cả") 1 else 0) +
             (if (selectedStatus != "Tất cả") 1 else 0) +
             selectedAmenities.size
+
+    val availableDistricts = remember(selectedCategory) {
+        if (selectedCategory == "Tất cả khu vực") {
+            LocationsData.ALL_HCM_DISTRICTS
+        } else {
+            val cat = LocationsData.DISTRICT_CATEGORIES.firstOrNull { it.name.contains(selectedCategory, ignoreCase = true) }
+            listOf("Tất cả") + (cat?.districts ?: emptyList())
+        }
+    }
+
+    val availableWards = remember(selectedDistrict) {
+        if (selectedDistrict == "Tất cả") {
+            emptyList()
+        } else {
+            listOf("Tất cả phường") + LocationsData.getWardsForDistrict(selectedDistrict)
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Tìm kiếm phòng trọ",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Tìm kiếm phòng",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Surface(
+                            onClick = { showCityDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = selectedCity,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
                 },
                 actions = {
                     Surface(
@@ -132,12 +217,12 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
                 placeholder = "Nhập quận, tên đường, loại phòng...",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
             )
 
-            // Source Filter Chips Bar (Chợ Tốt Nhà, Batdongsan, Phongtro123)
+            // Source Filter Chips Bar (Tất cả, Web tôi, Chợ Tốt Nhà, Batdongsan, Phongtro123)
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 3.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(sourceOptions) { src ->
@@ -156,15 +241,101 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 }
             }
 
+            // District Category Chips Bar (Trung tâm, Phía Đông, Phía Tây, Phía Nam, Ngoại thành)
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(categoryOptions) { cat ->
+                    val isSelected = selectedCategory == cat
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            selectedCategory = cat
+                            selectedDistrict = "Tất cả"
+                            selectedWard = "Tất cả phường"
+                        },
+                        label = {
+                            Text(
+                                text = cat,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    )
+                }
+            }
+
+            // District Scrollable Chips
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(availableDistricts) { district ->
+                    val isSelected = selectedDistrict == district
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            selectedDistrict = district
+                            selectedWard = "Tất cả phường"
+                        },
+                        label = { Text(district, fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            // Ward Chips Bar (when district != "Tất cả")
+            if (availableWards.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(availableWards) { ward ->
+                        val isSelected = selectedWard == ward
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedWard = ward },
+                            label = {
+                                Text(
+                                    text = ward,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
             // Active Filters Bar
             if (activeFiltersCount > 0) {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (selectedCategory != "Tất cả khu vực") {
+                        item {
+                            ActiveFilterBadge(label = selectedCategory) {
+                                selectedCategory = "Tất cả khu vực"
+                            }
+                        }
+                    }
                     if (selectedDistrict != "Tất cả") {
                         item {
-                            ActiveFilterBadge(label = selectedDistrict) { selectedDistrict = "Tất cả" }
+                            ActiveFilterBadge(label = selectedDistrict) {
+                                selectedDistrict = "Tất cả"
+                                selectedWard = "Tất cả phường"
+                            }
+                        }
+                    }
+                    if (selectedWard != "Tất cả phường") {
+                        item {
+                            ActiveFilterBadge(label = selectedWard) { selectedWard = "Tất cả phường" }
+                        }
+                    }
+                    if (selectedSource != "Tất cả") {
+                        item {
+                            ActiveFilterBadge(label = selectedSource) { selectedSource = "Tất cả" }
                         }
                     }
                     if (priceFilter != "Tất cả") {
@@ -186,28 +357,16 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                     }
                     item {
                         TextButton(onClick = {
+                            selectedCategory = "Tất cả khu vực"
                             selectedDistrict = "Tất cả"
+                            selectedWard = "Tất cả phường"
+                            selectedSource = "Tất cả"
                             priceFilter = "Tất cả"
                             selectedStatus = "Tất cả"
                             selectedAmenities = emptySet()
                         }) {
                             Text("Xóa tất cả", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
                         }
-                    }
-                }
-            } else {
-                // District Scrollable Chips
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(districts) { district ->
-                        val isSelected = selectedDistrict == district
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedDistrict = district },
-                            label = { Text(district, fontSize = 12.sp) }
-                        )
                     }
                 }
             }
@@ -236,7 +395,10 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                     actionLabel = "Đặt lại bộ lọc",
                     onActionClick = {
                         searchQuery = ""
+                        selectedCategory = "Tất cả khu vực"
                         selectedDistrict = "Tất cả"
+                        selectedWard = "Tất cả phường"
+                        selectedSource = "Tất cả"
                         priceFilter = "Tất cả"
                         selectedStatus = "Tất cả"
                         selectedAmenities = emptySet()
@@ -338,7 +500,10 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 ) {
                     OutlinedButton(
                         onClick = {
+                            selectedCategory = "Tất cả khu vực"
                             selectedDistrict = "Tất cả"
+                            selectedWard = "Tất cả phường"
+                            selectedSource = "Tất cả"
                             priceFilter = "Tất cả"
                             selectedStatus = "Tất cả"
                             selectedAmenities = emptySet()

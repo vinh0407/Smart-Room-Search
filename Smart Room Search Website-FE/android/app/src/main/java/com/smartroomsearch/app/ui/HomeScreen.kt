@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,22 +27,51 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.smartroomsearch.app.model.LocationsData
 
 @Composable
 fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
     val rooms by viewModel.rooms.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
+    val selectedCity by viewModel.selectedCity.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedDistrict by remember { mutableStateOf("Tất cả") }
+    var selectedWard by remember { mutableStateOf("Tất cả phường") }
+    var showCityDialog by remember { mutableStateOf(false) }
+
+    if (showCityDialog) {
+        CitySelectionDialog(
+            currentCity = selectedCity,
+            onCitySelected = { 
+                viewModel.selectCity(it)
+                selectedDistrict = "Tất cả"
+                selectedWard = "Tất cả phường"
+            },
+            onDismiss = { showCityDialog = false }
+        )
+    }
 
     val filteredRooms = rooms.filter {
-        (selectedDistrict == "Tất cả" ||
-         it.district.equals(selectedDistrict, ignoreCase = true) ||
-         it.district.contains(selectedDistrict, ignoreCase = true) ||
-         selectedDistrict.contains(it.district, ignoreCase = true)) &&
-        (searchQuery.isEmpty() || it.title.contains(searchQuery, ignoreCase = true) || it.address.contains(searchQuery, ignoreCase = true))
+        val matchCity = selectedCity == "Tất cả" ||
+                it.city.contains(selectedCity, ignoreCase = true) ||
+                selectedCity.contains(it.city, ignoreCase = true) ||
+                (selectedCity == "TP.HCM" && (it.city.contains("Hồ Chí Minh", ignoreCase = true) || it.city.contains("HCM", ignoreCase = true)))
+
+        val matchDistrict = selectedDistrict == "Tất cả" ||
+                it.district.equals(selectedDistrict, ignoreCase = true) ||
+                it.district.contains(selectedDistrict, ignoreCase = true) ||
+                selectedDistrict.contains(it.district, ignoreCase = true)
+
+        val matchWard = selectedWard == "Tất cả phường" ||
+                it.address.contains(selectedWard, ignoreCase = true)
+
+        val matchQuery = searchQuery.isEmpty() ||
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                it.address.contains(searchQuery, ignoreCase = true)
+
+        matchCity && matchDistrict && matchWard && matchQuery
     }
 
     val featuredRooms = filteredRooms.filter { it.isFeatured }
@@ -53,18 +84,31 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(bottom = 12.dp)
             ) {
-                HomeHeader()
+                HomeHeader(
+                    selectedCity = selectedCity,
+                    onCityClick = { showCityDialog = true }
+                )
                 AppSearchBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
                     placeholder = "Tìm quận, địa chỉ, tên đường...",
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 HomeDistrictChips(
                     selected = selectedDistrict,
-                    onSelected = { selectedDistrict = it }
+                    onSelected = {
+                        selectedDistrict = it
+                        selectedWard = "Tất cả phường"
+                    }
                 )
+                if (selectedDistrict != "Tất cả") {
+                    HomeWardChips(
+                        district = selectedDistrict,
+                        selectedWard = selectedWard,
+                        onWardSelected = { selectedWard = it }
+                    )
+                }
             }
         }
     ) { padding ->
@@ -165,7 +209,10 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
 }
 
 @Composable
-fun HomeHeader() {
+fun HomeHeader(
+    selectedCity: String,
+    onCityClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -182,13 +229,14 @@ fun HomeHeader() {
                 letterSpacing = (-0.5).sp
             )
             Text(
-                text = "Tìm phòng trọ TP.HCM dễ dàng",
+                text = "Tìm phòng trọ $selectedCity dễ dàng",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Surface(
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+            onClick = onCityClick,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
             shape = RoundedCornerShape(12.dp)
         ) {
             Row(
@@ -196,17 +244,24 @@ fun HomeHeader() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Home,
+                    imageVector = Icons.Default.LocationOn,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "TP.HCM",
+                    text = selectedCity,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Chọn tỉnh thành",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -215,7 +270,7 @@ fun HomeHeader() {
 
 @Composable
 fun HomeDistrictChips(selected: String, onSelected: (String) -> Unit) {
-    val districts = listOf("Tất cả", "Quận 1", "Quận 3", "Quận 7", "Quận 10", "Bình Thạnh", "Gò Vấp", "Tân Bình", "Phú Nhuận", "Tân Phú")
+    val districts = LocationsData.ALL_HCM_DISTRICTS
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -240,6 +295,48 @@ fun HomeDistrictChips(selected: String, onSelected: (String) -> Unit) {
                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
+        }
+    }
+}
+
+@Composable
+fun HomeWardChips(district: String, selectedWard: String, onWardSelected: (String) -> Unit) {
+    val wards = remember(district) {
+        listOf("Tất cả phường") + LocationsData.getWardsForDistrict(district)
+    }
+    if (wards.size > 1) {
+        Column(modifier = Modifier.padding(top = 6.dp)) {
+            Text(
+                text = "Phường thuộc $district:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(wards) { ward ->
+                    val isSelected = selectedWard == ward
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onWardSelected(ward) },
+                        label = {
+                            Text(
+                                text = ward,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+            }
         }
     }
 }

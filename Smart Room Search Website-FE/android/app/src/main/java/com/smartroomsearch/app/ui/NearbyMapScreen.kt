@@ -84,8 +84,8 @@ fun NearbyMapScreen(
 
     val nearbyRooms = remember(rooms, selectedRadius) {
         rooms.filter { r ->
-            r.lat > 0 && r.lng > 0 && calculateDistance(userLat, userLng, r.lat, r.lng) <= radiusLimit
-        }.sortedBy { calculateDistance(userLat, userLng, it.lat, it.lng) }
+            r.lat in 8.0..24.0 && r.lng in 102.0..110.0 && calculateDistance(userLat, userLng, r.lat, r.lng) <= radiusLimit
+        }.sortedBy { calculateDistance(userLat, userLng, it.lat, it.lng) }.take(120)
     }
 
     var selectedRoomOnMap by remember { mutableStateOf<Room?>(nearbyRooms.firstOrNull()) }
@@ -93,7 +93,7 @@ fun NearbyMapScreen(
     // Tạo HTML chứa OpenStreetMap (Leaflet.js) - 100% Miễn phí, mượt mà
     val mapHtml = remember(nearbyRooms) {
         val markersJs = nearbyRooms.joinToString(",") { r ->
-            val escapedTitle = r.title.replace("'", "\\'").replace("\"", "\\\"")
+            val escapedTitle = r.title.replace("'", "\\'").replace("\"", "\\\"").replace("\n", " ")
             val priceStr = "${DecimalFormat("#,###").format(r.price)} đ"
             """
             {
@@ -140,31 +140,43 @@ fun NearbyMapScreen(
         <body>
             <div id="map"></div>
             <script>
-                var map = L.map('map', { zoomControl: false }).setView([$userLat, $userLng], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '© OpenStreetMap'
-                }).addTo(map);
+                try {
+                    var map = L.map('map', { zoomControl: false }).setView([$userLat, $userLng], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap'
+                    }).addTo(map);
 
-                // User Location Pin
-                var userIcon = L.divIcon({ className: 'user-pin', iconSize: [14, 14] });
-                L.marker([$userLat, $userLng], { icon: userIcon }).addTo(map).bindPopup("<b>Vị trí của bạn</b>");
+                    // User Location Pin
+                    var userIcon = L.divIcon({ className: 'user-pin', iconSize: [14, 14] });
+                    L.marker([$userLat, $userLng], { icon: userIcon }).addTo(map).bindPopup("<b>Vị trí của bạn</b>");
 
-                var markers = [$markersJs];
-                markers.forEach(function(m) {
-                    var badgeIcon = L.divIcon({
-                        className: 'custom-div-icon',
-                        html: '<div class="price-badge">' + m.price + '</div>',
-                        iconSize: [60, 20],
-                        iconAnchor: [30, 10]
-                    });
-                    var marker = L.marker([m.lat, m.lng], { icon: badgeIcon }).addTo(map);
-                    marker.on('click', function() {
-                        if (window.AndroidBridge) {
-                            window.AndroidBridge.onRoomSelected(m.id);
-                        }
-                    });
-                });
+                    var markers = [$markersJs];
+                    if (markers.length > 0) {
+                        var bounds = L.latLngBounds([[$userLat, $userLng]]);
+                        markers.forEach(function(m) {
+                            if (m.lat && m.lng) {
+                                bounds.extend([m.lat, m.lng]);
+                                var badgeIcon = L.divIcon({
+                                    className: 'custom-div-icon',
+                                    html: '<div class="price-badge">' + m.price + '</div>',
+                                    iconSize: [60, 20],
+                                    iconAnchor: [30, 10]
+                                });
+                                var marker = L.marker([m.lat, m.lng], { icon: badgeIcon }).addTo(map);
+                                marker.on('click', function() {
+                                    if (window.AndroidBridge) {
+                                        window.AndroidBridge.onRoomSelected(m.id);
+                                    }
+                                });
+                            }
+                        });
+                        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+                    }
+                    setTimeout(function() { map.invalidateSize(); }, 300);
+                } catch(e) {
+                    console.error("Map init error:", e);
+                }
             </script>
         </body>
         </html>
@@ -209,17 +221,23 @@ fun NearbyMapScreen(
                         addJavascriptInterface(object {
                             @JavascriptInterface
                             fun onRoomSelected(roomId: Int) {
-                                val found = rooms.find { it.id == roomId }
-                                if (found != null) {
-                                    selectedRoomOnMap = found
+                                post {
+                                    val found = rooms.find { it.id == roomId }
+                                    if (found != null) {
+                                        selectedRoomOnMap = found
+                                    }
                                 }
                             }
                         }, "AndroidBridge")
+                        tag = mapHtml
                         loadDataWithBaseURL("https://openstreetmap.org", mapHtml, "text/html", "UTF-8", null)
                     }
                 },
                 update = { webView ->
-                    webView.loadDataWithBaseURL("https://openstreetmap.org", mapHtml, "text/html", "UTF-8", null)
+                    if (webView.tag != mapHtml) {
+                        webView.tag = mapHtml
+                        webView.loadDataWithBaseURL("https://openstreetmap.org", mapHtml, "text/html", "UTF-8", null)
+                    }
                 }
             )
 

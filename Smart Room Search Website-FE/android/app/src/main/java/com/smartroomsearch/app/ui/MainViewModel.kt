@@ -38,6 +38,13 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
     private val _favorites = repository.getFavorites().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     val favorites: StateFlow<List<FavoriteRoom>> = _favorites
 
+    private val _selectedCity = MutableStateFlow("TP.HCM")
+    val selectedCity: StateFlow<String> = _selectedCity
+
+    fun selectCity(city: String) {
+        _selectedCity.value = city
+    }
+
     init {
         loadPublicData()
         RetrofitClient.getToken()?.let { saved ->

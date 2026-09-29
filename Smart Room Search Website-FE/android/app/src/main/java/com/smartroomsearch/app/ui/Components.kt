@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.smartroomsearch.app.model.Room
 import com.smartroomsearch.app.model.RoomStatus
+import com.smartroomsearch.app.model.LocationsData
 
 // Design Tokens - Brand Colors Preserved 100%
 val BrandPrimary = Color(0xFFF97316) // Trọ Xịn Primary Orange
@@ -80,6 +81,7 @@ private fun getAmenityIcon(amenity: String): ImageVector {
 val SourceNhaTotColor = Color(0xFFD97706)
 val SourceBdsColor = Color(0xFF2563EB)
 val SourcePhongTro123Color = Color(0xFF059669)
+val SourceChinhChuColor = Color(0xFF10B981)
 
 @Composable
 fun SourceBadge(source: String?) {
@@ -87,9 +89,104 @@ fun SourceBadge(source: String?) {
         "nhatot" -> SourceNhaTotColor to "Chợ Tốt Nhà"
         "batdongsan" -> SourceBdsColor to "Batdongsan"
         "phongtro123" -> SourcePhongTro123Color to "Phongtro123"
-        else -> return
+        "local", "", null -> SourceChinhChuColor to "✨ Chính chủ"
+        else -> Color(0xFF6B7280) to (source ?: "Ngoại sàn")
     }
     CustomBadge(text, color)
+}
+
+@Composable
+fun CitySelectionDialog(
+    currentCity: String,
+    onCitySelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Chọn Tỉnh / Thành phố",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Chọn khu vực bạn muốn tìm phòng trọ:",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                LocationsData.CITIES.forEach { city ->
+                    val isSelected = currentCity.equals(city.shortName, ignoreCase = true) ||
+                                     currentCity.equals(city.name, ignoreCase = true)
+                    Surface(
+                        onClick = {
+                            onCitySelected(city.shortName)
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = city.name,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (city.isPopular) {
+                                    Text(
+                                        text = "Phổ biến • Nhiều phòng",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
 }
 
 @Composable
