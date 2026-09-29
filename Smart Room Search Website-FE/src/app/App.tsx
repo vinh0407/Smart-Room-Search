@@ -395,14 +395,8 @@ const mapApiRoomToRoom = (room: any): Room => ({
   externalUrl: room.externalUrl || room.external_url || undefined,
 });
 
-const getStatusInfo = (status: Status) => {
+const getStatusInfo = (status?: Status | string) => {
   switch (status) {
-    case "available":
-      return {
-        label: "Còn trống",
-        bg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-        dot: "bg-emerald-500",
-      };
     case "rented":
       return {
         label: "Đã thuê",
@@ -414,6 +408,13 @@ const getStatusInfo = (status: Status) => {
         label: "Bảo trì",
         bg: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
         dot: "bg-amber-500",
+      };
+    case "available":
+    default:
+      return {
+        label: "Còn trống",
+        bg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+        dot: "bg-emerald-500",
       };
   }
 };
@@ -461,7 +462,7 @@ function AmenityBadge({
   );
 }
 
-function StatusBadge({ status }: { status: Status }) {
+function StatusBadge({ status }: { status?: Status | string }) {
   const info = getStatusInfo(status);
   return (
     <span
@@ -498,13 +499,13 @@ function RoomCard({
   distance,
 }: {
   room: Room;
-  onView: (id: number) => void;
-  onToggleFavorite: (id: number) => void;
+  onView: (id: number | string) => void;
+  onToggleFavorite: (id: number | string) => void;
   isFavorite: boolean;
   distance?: number | null;
 }) {
   const status = getStatusInfo(room.status);
-  const coverImage = room.images[0] || FALLBACK_IMAGE;
+  const coverImage = (Array.isArray(room.images) && room.images[0]) || FALLBACK_IMAGE;
   return (
     <motion.article
       initial={{ opacity: 0, y: 12 }}
@@ -640,8 +641,8 @@ function ImageGallery({
   const [active, setActive] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const galleryImages =
-    images.length > 0 ? images : [FALLBACK_IMAGE];
-  const currentImage = galleryImages[active] || FALLBACK_IMAGE;
+    Array.isArray(images) && images.length > 0 ? images : [FALLBACK_IMAGE];
+  const currentImage = galleryImages[active] || galleryImages[0] || FALLBACK_IMAGE;
   const fullscreenCloseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -1028,6 +1029,1028 @@ function FilterPanel({
   );
 }
 
+
+// ═══════════════════════════════════════════════════════
+// DETAIL PAGE COMPONENT (STANDALONE)
+// ═══════════════════════════════════════════════════════
+interface DetailPageProps {
+  room: Room;
+  distances: Record<number | string, number>;
+  favorites: Set<number | string>;
+  toggleFavorite: (id: number | string) => void;
+  goHome: () => void;
+  navigate: (path: string) => void;
+  userLocation: { lat: number; lng: number } | null;
+  requestLocation: () => void;
+  handleContact: (room: Room) => void;
+  contactedRooms: Set<number | string>;
+  rooms: Room[];
+  viewRoom: (id: number | string) => void;
+}
+
+function DetailPage({
+  room,
+  distances,
+  favorites,
+  toggleFavorite,
+  goHome,
+  navigate,
+  userLocation,
+  requestLocation,
+  handleContact,
+  contactedRooms,
+  rooms,
+  viewRoom,
+}: DetailPageProps) {
+  const status = getStatusInfo(room.status);
+  const dist = distances[room.id];
+
+  const [reviews, setReviews] = useState<RoomReview[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [reviewAuthor, setReviewAuthor] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewMsg, setReviewMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingReviews(true);
+    api
+      .get(`/rooms/${room.id}/reviews`)
+      .then((res) => {
+        if (isMounted) {
+          const list = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+          setReviews(list);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setReviews([]);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingReviews(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [room.id]);
+
+  const handleAddReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewComment.trim()) return;
+    setSubmittingReview(true);
+    setReviewMsg(null);
+    try {
+      const payload = {
+        userName: isAnonymous
+          ? reviewAuthor.trim() || "Người dùng ẩn danh"
+          : reviewAuthor.trim() || "Khách xem phòng",
+        rating: Number(reviewRating),
+        comment: reviewComment.trim(),
+        isAnonymous: isAnonymous,
+      };
+      const res = await api.post(`/rooms/${room.id}/reviews`, payload);
+      const created = res.data?.data;
+      if (created) {
+        setReviews((prev) => [created, ...prev]);
+      }
+      setReviewComment("");
+      if (!isAnonymous) setReviewAuthor("");
+      setReviewMsg({
+        type: "success",
+        text: "Cảm ơn bạn! Đánh giá đã được gửi thành công.",
+      });
+      setTimeout(() => setReviewMsg(null), 4000);
+    } catch (err: any) {
+      setReviewMsg({
+        type: "error",
+        text:
+          err.response?.data?.message ||
+          "Không thể gửi đánh giá. Vui lòng thử lại.",
+      });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const roomInfoItems = [
+    room.area != null && {
+      label: "Diện tích",
+      value: `${room.area} m²`,
+    },
+    room.maxPeople != null && {
+      label: "Số người",
+      value: `Tối đa ${room.maxPeople} người`,
+    },
+    room.district?.trim() && {
+      label: "Quận/Huyện",
+      value: room.district,
+    },
+    room.city?.trim() && {
+      label: "Thành phố",
+      value: room.city,
+    },
+    (room.views ?? 0) > 0 && {
+      label: "Lượt xem",
+      value: `${(room.views ?? 0).toLocaleString()} lượt`,
+    },
+    dist != null && {
+      label: "Cách bạn",
+      value:
+        dist < 1
+          ? `${(dist * 1000).toFixed(0)} m`
+          : `${dist.toFixed(1)} km`,
+    },
+  ].filter(
+    (item): item is { label: string; value: string } =>
+      Boolean(item)
+  );
+
+  const mapsUrl = room.address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(room.address)}`
+    : `https://www.google.com/maps?q=${room.lat ?? 10.7769},${room.lng ?? 106.7009}`;
+  const mapsEmbedUrl = `https://maps.google.com/maps?q=${room.lat ?? 10.7769},${room.lng ?? 106.7009}&z=16&output=embed`;
+  const related = rooms
+    .filter(
+      (r) => String(r.id) !== String(room.id) && r.district === room.district,
+    )
+    .slice(0, 3);
+
+  return (
+    <div className="pt-14 min-h-screen">
+      {/* Breadcrumb */}
+      <div className="border-b border-border bg-card">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-2 text-sm">
+          <button
+            onClick={goHome}
+            className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+          >
+            <Home size={13} /> Trang chủ
+          </button>
+          <ChevronRight
+            size={13}
+            className="text-muted-foreground"
+          />
+          <button
+            onClick={() => navigate("/rooms")}
+            className="text-muted-foreground hover:text-primary"
+          >
+            Danh sách phòng
+          </button>
+          <ChevronRight
+            size={13}
+            className="text-muted-foreground"
+          />
+          <span className="font-semibold text-foreground line-clamp-1">
+            {room.name}
+          </span>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Gallery */}
+            <ImageGallery
+              images={room.images}
+              name={room.name}
+            />
+
+            {/* Header info */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <StatusBadge status={room.status} />
+                  {room.source === "nhatot" && (
+                    <span className="flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                      <ExternalLink size={10} /> Chợ Tốt Nhà
+                    </span>
+                  )}
+                  {room.source === "batdongsan" && (
+                    <span className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-300 px-2.5 py-1 text-[11px] font-bold text-blue-700 dark:text-blue-400">
+                      <ExternalLink size={10} /> Batdongsan.com.vn
+                    </span>
+                  )}
+                  {room.source === "phongtro123" && (
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-300 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                      <ExternalLink size={10} /> Phongtro123
+                    </span>
+                  )}
+                  {room.isFeatured && (
+                    <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+                      <Star size={10} fill="currentColor" />{" "}
+                      Nổi bật
+                    </span>
+                  )}
+                  <RatingStars rating={room.rating} />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">
+                  {room.name}
+                </h1>
+                <div className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground break-words min-w-0">
+                  <MapPin
+                    size={14}
+                    className="text-primary shrink-0"
+                  />
+                  <span className="break-words">{room.address}</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => toggleFavorite(room.id)}
+                  className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                    favorites.has(room.id) || favorites.has(Number(room.id)) || favorites.has(String(room.id))
+                      ? "bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-800"
+                      : "border-border text-muted-foreground hover:border-red-300 hover:text-red-500"
+                  }`}
+                >
+                  <Heart
+                    size={14}
+                    fill={
+                      favorites.has(room.id) || favorites.has(Number(room.id)) || favorites.has(String(room.id))
+                        ? "currentColor"
+                        : "none"
+                    }
+                  />
+                  {favorites.has(room.id) || favorites.has(Number(room.id)) || favorites.has(String(room.id)) ? "Đã lưu" : "Lưu"}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(window.location.href);
+                    alert("Đã sao chép liên kết phòng!");
+                  }}
+                  className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-all"
+                >
+                  <Share2 size={14} /> Chia sẻ
+                </button>
+              </div>
+            </div>
+
+            {/* Price breakdown */}
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <h2 className="font-bold text-foreground mb-4">
+                Chi phí hàng tháng
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[
+                  {
+                    label: "Tiền thuê",
+                    value: formatPriceFull(room.price),
+                    highlight: true,
+                  },
+                  room.electricity != null && {
+                    label: "Điện",
+                    value: `${room.electricity.toLocaleString("vi-VN")} đ/kWh`,
+                  },
+                  room.water != null && {
+                    label: "Nước",
+                    value: formatPriceFull(room.water) + "/người",
+                  },
+                  room.internet != null && {
+                    label: "Internet",
+                    value: formatPriceFull(room.internet),
+                  },
+                  room.serviceFee != null && {
+                    label: "Phí dịch vụ",
+                    value: formatPriceFull(room.serviceFee),
+                  },
+                ]
+                  .filter(
+                    (
+                      item
+                    ): item is {
+                      label: string;
+                      value: string;
+                      highlight?: boolean;
+                    } => Boolean(item)
+                  )
+                  .map(({ label, value, highlight }) => (
+                  <div
+                    key={label}
+                    className={`rounded-xl p-3 ${highlight ? "bg-primary/10 border border-primary/20" : "bg-muted"}`}
+                  >
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      {label}
+                    </p>
+                    <p
+                      className={`text-sm font-bold mt-0.5 ${highlight ? "text-primary" : "text-foreground"}`}
+                    >
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Details */}
+            {roomInfoItems.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h2 className="font-bold text-foreground mb-4">
+                  Thông tin phòng
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {roomInfoItems.map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="rounded-xl bg-muted p-3"
+                    >
+                      <p className="text-[11px] text-muted-foreground">
+                        {label}
+                      </p>
+                      <p className="text-sm font-bold text-foreground mt-0.5 break-words">
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Amenities */}
+            {Array.isArray(room.amenities) && room.amenities.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h2 className="font-bold text-foreground mb-4">
+                  Tiện ích
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {room.amenities.map((a) => (
+                    <AmenityBadge key={a} id={a} size="md" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            {room.description && room.description.trim() && (
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h2 className="font-bold text-foreground mb-3">
+                  Mô tả
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed break-words whitespace-pre-line">
+                  {room.description}
+                </p>
+              </div>
+            )}
+
+            {/* Map */}
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Map size={16} className="text-primary" />
+                  <h2 className="font-bold text-foreground">
+                    Vị trí phòng
+                  </h2>
+                </div>
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                >
+                  Mở Google Maps <ExternalLink size={11} />
+                </a>
+              </div>
+              <div className="relative h-64 bg-muted">
+                {room.lat && room.lng ? (
+                  <Suspense fallback={<div className="h-full bg-muted animate-pulse" />}>
+                    <RoomMap
+                      rooms={[{ id: room.id, title: room.name, lat: room.lat ?? 10.7769, lng: room.lng ?? 106.7009, price: room.price, address: room.address, area: room.area, district: room.district }]}
+                      userLat={userLocation?.lat}
+                      userLng={userLocation?.lng}
+                      radiusKm={5}
+                      height="256px"
+                      variant="detail"
+                    />
+                  </Suspense>
+                ) : (
+                  <iframe
+                    src={mapsEmbedUrl}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Vị trí phòng"
+                  />
+                )}
+              </div>
+              <div className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground break-words">
+                    {room.address}
+                  </p>
+                  {dist != null && (
+                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                      <Navigation
+                        size={11}
+                        className="text-primary"
+                      />
+                      Cách bạn{" "}
+                      {dist < 1
+                        ? `${(dist * 1000).toFixed(0)}m`
+                        : `${dist.toFixed(1)}km`}
+                      <Clock size={11} className="ml-2" />~
+                      {Math.ceil(dist * 4)} phút xe máy
+                    </p>
+                  )}
+                </div>
+                <a
+                  href={room.address
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(room.address)}`
+                    : `https://www.google.com/maps/dir/?api=1&destination=${room.lat ?? 10.7769},${room.lng ?? 106.7009}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white hover:brightness-95 transition-all"
+                >
+                  <Navigation size={12} /> Chỉ đường
+                </a>
+              </div>
+            </div>
+
+            {/* Reviews & Google Maps Feedback Section */}
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Star size={18} className="text-amber-500 fill-amber-500" />
+                    Đánh giá & Trải nghiệm thực tế
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {reviews.length > 0
+                      ? `${reviews.length} nhận xét từ khách thuê và người xem phòng`
+                      : "Chưa có đánh giá nào cho phòng này"}
+                  </p>
+                </div>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((room.name || "") + " " + (room.address || ""))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition-colors"
+                >
+                  Xem & Đánh giá trên Google Maps <ExternalLink size={12} />
+                </a>
+              </div>
+
+              {/* Form thêm đánh giá không cần đăng nhập / ẩn danh */}
+              <form onSubmit={handleAddReview} className="rounded-xl bg-muted/50 p-4 border border-border/60 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs font-bold text-foreground">
+                    Viết đánh giá của bạn (Không cần đăng nhập)
+                  </span>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={isAnonymous}
+                      onChange={(e) => setIsAnonymous(e.target.checked)}
+                      className="rounded text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
+                    Đánh giá ẩn danh
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {!isAnonymous && (
+                    <input
+                      type="text"
+                      placeholder="Tên của bạn (VD: Minh Tuấn)"
+                      value={reviewAuthor}
+                      onChange={(e) => setReviewAuthor(e.target.value)}
+                      className="rounded-xl border border-border bg-input-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground font-medium">Mức độ hài lòng:</span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setReviewRating(star)}
+                          className="p-1 text-amber-500 hover:scale-110 transition-transform"
+                        >
+                          <Star
+                            size={18}
+                            fill={star <= reviewRating ? "currentColor" : "none"}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                      {reviewRating}/5 sao
+                    </span>
+                  </div>
+                </div>
+
+                <textarea
+                  rows={3}
+                  placeholder="Chia sẻ trải nghiệm về căn phòng này (an ninh, chủ trọ, không gian, phòng có giống ảnh không...)"
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-border bg-input-background p-3 text-xs text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+
+                {reviewMsg && (
+                  <div
+                    className={`text-xs p-2.5 rounded-xl font-medium ${
+                      reviewMsg.type === "success"
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                        : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                    }`}
+                  >
+                    {reviewMsg.text}
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={submittingReview || !reviewComment.trim()}
+                    className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                  >
+                    {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+                  </button>
+                </div>
+              </form>
+
+              {/* Danh sách review */}
+              <div className="space-y-3 pt-1">
+                {loadingReviews ? (
+                  <p className="text-center text-xs text-muted-foreground py-4">
+                    Đang tải đánh giá...
+                  </p>
+                ) : reviews.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <p className="text-xs">Chưa có đánh giá nào cho phòng này.</p>
+                    <p className="text-[11px] mt-0.5">Hãy là người đầu tiên chia sẻ cảm nhận thực tế!</p>
+                  </div>
+                ) : (
+                  reviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="rounded-xl border border-border bg-muted/20 p-3.5 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
+                            {(rev.userName || rev.user_name || "A")[0].toUpperCase()}
+                          </div>
+                          <span className="text-xs font-bold text-foreground">
+                            {rev.userName || rev.user_name || "Người dùng ẩn danh"}
+                          </span>
+                          {(rev.isAnonymous || rev.is_anonymous) && (
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground font-semibold">
+                              Ẩn danh
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-amber-500">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              size={11}
+                              fill={s <= rev.rating ? "currentColor" : "none"}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-line">
+                        {rev.comment}
+                      </p>
+                      {(rev.createdAt || rev.created_at) && (
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(rev.createdAt || rev.created_at!).toLocaleDateString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Related */}
+            {related.length > 0 && (
+              <div>
+                <h2 className="font-bold text-foreground mb-4">
+                  Phòng tương tự tại {room.district}
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {related.map((r) => (
+                    <MemoRoomCard
+                      key={r.id}
+                      room={r}
+                      onView={viewRoom}
+                      onToggleFavorite={toggleFavorite}
+                      isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
+                      distance={distances[r.id]}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sticky contact card */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-20 space-y-4">
+              {/* Price card */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-3xl font-extrabold text-primary">
+                    {formatPrice(room.price)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    /tháng
+                  </span>
+                </div>
+                {(room.area != null || room.maxPeople != null) && (
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {[
+                      `${formatPriceFull(room.price)}/tháng`,
+                      room.area != null && `${room.area}m²`,
+                      room.maxPeople != null &&
+                        `${room.maxPeople} người`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
+
+                <StatusBadge status={room.status} />
+
+                {room.status === "available" && (
+                  <div className="mt-4 space-y-2">
+                    {room.phone ? (
+                      <a
+                        href={`tel:${room.phone}`}
+                        onClick={() => handleContact(room)}
+                        className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-lg transition-all hover:brightness-95"
+                      >
+                        <Phone size={16} />
+                        Gọi chủ trọ
+                      </a>
+                    ) : null}
+                    {room.zaloLink ? (
+                      <a
+                        href={room.zaloLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => handleContact(room)}
+                        className="flex w-full items-center justify-center gap-3 rounded-lg border border-primary/30 bg-primary/5 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/10"
+                      >
+                        <MessageCircle size={16} />
+                        Chat Zalo
+                      </a>
+                    ) : null}
+                    {room.externalUrl ? (
+                      <a
+                        href={room.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-orange-700"
+                      >
+                        <ExternalLink size={16} />
+                        Mở bài đăng gốc ({room.source === 'nhatot' ? 'Chợ Tốt Nhà' : room.source === 'batdongsan' ? 'Batdongsan.com.vn' : room.source === 'phongtro123' ? 'Phongtro123.com' : 'Trang nguồn'})
+                      </a>
+                    ) : null}
+                    {!room.phone && !room.zaloLink && (
+                      <p className="rounded-lg bg-muted p-3 text-center text-xs text-muted-foreground">
+                        Phòng chưa có thông tin liên hệ.
+                      </p>
+                    )}
+                    {contactedRooms.has(room.id) && (
+                      <p className="text-center text-xs text-emerald-600 flex items-center justify-center gap-1">
+                        <CheckCircle size={11} /> Đã liên hệ
+                        chủ trọ
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    {
+                      label: "Lượt xem",
+                      value: room.views,
+                      icon: <Eye size={14} />,
+                    },
+                    {
+                      label: "Liên hệ",
+                      value: room.contacts,
+                      icon: <Phone size={14} />,
+                    },
+                  ].map(({ label, value, icon }) => (
+                    <div
+                      key={label}
+                      className="flex flex-col gap-1"
+                    >
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {icon} {label}
+                      </span>
+                      <span className="text-lg font-bold text-foreground">
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Location note */}
+              {!userLocation && (
+                <button
+                  onClick={requestLocation}
+                  className="w-full flex items-center gap-2 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 text-sm text-primary font-semibold hover:bg-primary/10 transition-colors"
+                >
+                  <Navigation size={16} /> Bật vị trí để xem
+                  khoảng cách
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// MAP PAGE COMPONENT (STANDALONE)
+// ═══════════════════════════════════════════════════════
+interface MapPageProps {
+  rooms: Room[];
+  userLocation: { lat: number; lng: number } | null;
+  setUserLocation: (loc: { lat: number; lng: number } | null) => void;
+  goHome: () => void;
+  viewRoom: (id: number | string) => void;
+}
+
+function MapPage({
+  rooms,
+  userLocation,
+  setUserLocation,
+  goHome,
+  viewRoom,
+}: MapPageProps) {
+  const [selectedRadius, setSelectedRadius] = useState<number>(5); // km, 0 = all
+  const [userGps, setUserGps] = useState<{ lat: number; lng: number } | null>(userLocation);
+  const [locating, setLocating] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Trình duyệt của bạn không hỗ trợ định vị GPS.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserGps(loc);
+        setUserLocation(loc);
+        setLocating(false);
+      },
+      (err) => {
+        console.warn("Geolocation error", err);
+        setLocating(false);
+        alert("Không thể lấy vị trí hiện tại. Vui lòng cho phép quyền truy cập vị trí trên trình duyệt.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const effectiveLat = userGps?.lat ?? 10.7769;
+  const effectiveLng = userGps?.lng ?? 106.7009;
+
+  const validRooms = useMemo(() => {
+    return rooms
+      .filter((r) => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng))
+      .map((r) => {
+        const dist = haversine(effectiveLat, effectiveLng, r.lat!, r.lng!);
+        return { ...r, distanceKm: dist };
+      })
+      .filter((r) => selectedRadius === 0 || r.distanceKm <= selectedRadius)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+  }, [rooms, effectiveLat, effectiveLng, selectedRadius]);
+
+  const radiusOptions = [
+    { label: "1 km", value: 1 },
+    { label: "3 km", value: 3 },
+    { label: "5 km", value: 5 },
+    { label: "10 km", value: 10 },
+    { label: "Tất cả", value: 0 },
+  ];
+
+  return (
+    <div className="pt-14 min-h-screen bg-background flex flex-col">
+      {/* Top filter bar */}
+      <div className="border-b border-border bg-card px-4 py-3 shadow-sm z-10">
+        <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goHome}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted hover:bg-muted/80 transition-colors"
+              title="Về trang chủ"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <div>
+              <h1 className="text-base sm:text-lg font-extrabold text-foreground flex items-center gap-2">
+                <Map className="text-primary" size={18} />
+                Bản đồ tìm phòng trọ gần bạn
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {validRooms.length} phòng trọ {selectedRadius > 0 ? `trong bán kính ${selectedRadius}km` : "trên toàn khu vực"}
+              </p>
+            </div>
+          </div>
+
+          {/* Radius Options & GPS button */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleGetLocation}
+              disabled={locating}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-sm ${
+                userGps
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                  : "bg-card border-border text-foreground hover:border-primary hover:text-primary"
+              }`}
+            >
+              <Navigation size={13} className={locating ? "animate-spin" : ""} />
+              {locating ? "Đang định vị..." : userGps ? "Vị trí của bạn (Đã bật)" : "Định vị vị trí của tôi"}
+            </button>
+
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
+              {radiusOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSelectedRadius(opt.value)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    selectedRadius === opt.value
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Map + Side List Container */}
+      <div className="flex-1 flex flex-col lg:flex-row relative">
+        {/* Map View */}
+        <div className="flex-1 h-[55vh] lg:h-[calc(100vh-120px)] relative">
+          <Suspense fallback={<div className="h-full w-full bg-muted animate-pulse flex items-center justify-center text-xs text-muted-foreground">Đang tải bản đồ...</div>}>
+            <RoomMap
+              rooms={validRooms.map((r) => ({
+                id: r.id,
+                title: r.name,
+                lat: r.lat!,
+                lng: r.lng!,
+                price: r.price,
+                address: r.address,
+                area: r.area,
+                district: r.district,
+              }))}
+              userLat={userGps?.lat}
+              userLng={userGps?.lng}
+              radiusKm={selectedRadius > 0 ? selectedRadius : 15}
+              height="100%"
+              variant="overview"
+              onViewRoom={(id) => {
+                const target = rooms.find((r) => String(r.id) === String(id));
+                if (target) setSelectedRoom(target);
+              }}
+            />
+          </Suspense>
+        </div>
+
+        {/* Sidebar / bottom list */}
+        <div className="w-full lg:w-[420px] bg-card border-t lg:border-t-0 lg:border-l border-border h-[45vh] lg:h-[calc(100vh-120px)] overflow-y-auto p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <h2 className="text-sm font-bold text-foreground">
+              {selectedRoom ? "Phòng được chọn trên bản đồ" : `Danh sách phòng gần nhất (${validRooms.length})`}
+            </h2>
+            {selectedRoom && (
+              <button
+                type="button"
+                onClick={() => setSelectedRoom(null)}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                Xem tất cả
+              </button>
+            )}
+          </div>
+
+          {(selectedRoom ? [selectedRoom] : validRooms).length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <MapPin size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-xs">Không tìm thấy phòng nào trong bán kính {selectedRadius}km.</p>
+              <button
+                type="button"
+                onClick={() => setSelectedRadius(0)}
+                className="mt-3 text-xs font-bold text-primary hover:underline"
+              >
+                Mở rộng bán kính tìm kiếm
+              </button>
+            </div>
+          ) : (
+            (selectedRoom ? [selectedRoom] : validRooms).map((room) => {
+              const dist = haversine(effectiveLat, effectiveLng, room.lat!, room.lng!);
+              return (
+                <div
+                  key={room.id}
+                  onClick={() => setSelectedRoom(room)}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 ${
+                    selectedRoom?.id === room.id
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "border-border bg-card hover:border-primary/50 hover:bg-muted/40"
+                  }`}
+                >
+                  <img
+                    src={(Array.isArray(room.images) && room.images[0]) || FALLBACK_IMAGE}
+                    alt={room.name}
+                    className="w-24 h-24 object-cover rounded-xl shrink-0"
+                    onError={(e) => {
+                      if (e.currentTarget.src !== FALLBACK_IMAGE) e.currentTarget.src = FALLBACK_IMAGE;
+                    }}
+                  />
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-extrabold text-primary">
+                          {formatPrice(room.price)}/tháng
+                        </span>
+                        {room.area && (
+                          <span className="text-[11px] text-muted-foreground">
+                            · {room.area}m²
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-sm font-bold text-foreground line-clamp-1 mt-0.5" title={room.name}>
+                        {room.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                        {room.address}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/50 text-[11px]">
+                      <span className="text-primary font-semibold flex items-center gap-1">
+                        <Navigation size={11} />
+                        {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(room.address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary"
+                          title="Chỉ đường Google Maps"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            viewRoom(room.id);
+                          }}
+                          className="rounded-lg bg-primary px-2.5 py-1 text-xs font-bold text-white hover:brightness-95 transition-all"
+                        >
+                          Xem phòng
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════
@@ -1055,7 +2078,7 @@ export default function App() {
   const [filters, setFilters] =
     useState<FilterState>(DEFAULT_FILTER);
   const [sortOption, setSortOption] = useState<SortOption>("newest");
-  const [favorites, setFavorites] = useState<Set<number>>(() => {
+  const [favorites, setFavorites] = useState<Set<number | string>>(() => {
     try {
       return new Set(JSON.parse(localStorage.getItem("sr_favorites") || "[]"));
     } catch {
@@ -1066,7 +2089,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("sr_dark") === "1",
   );
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [rooms, setRooms] = useState<Room[]>(() => EXTERNAL_MOCK_ROOMS);
   const [demands, setDemands] = useState<Demand[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState<string | null>(null);
@@ -1098,9 +2121,7 @@ export default function App() {
     status: "available" as Status,
     images: "",
   });
-  const [contactedRooms, setContactedRooms] = useState<
-    Set<number>
-  >(new Set());
+  const [contactedRooms, setContactedRooms] = useState<Set<number | string>>(new Set());
   const [showDemandModal, setShowDemandModal] = useState(false);
   const [showDemandMenu, setShowDemandMenu] = useState(false);
   const [showDemandListModal, setShowDemandListModal] = useState(false);
@@ -1230,32 +2251,57 @@ export default function App() {
     }
 
     let isMounted = true;
+
+    // Nếu đã có detailRoom và trùng ID thì không cần tải lại
+    if (detailRoom && String(detailRoom.id) === String(selectedRoomId)) {
+      setDetailLoading(false);
+      setDetailError(null);
+      return;
+    }
+
+    // 1. Kiểm tra trong rooms hiện tại
+    const foundInRooms = rooms.find((r) => String(r.id) === String(selectedRoomId));
+    if (foundInRooms) {
+      setDetailRoom(foundInRooms);
+      setDetailError(null);
+      setDetailLoading(false);
+      return;
+    }
+
+    // 2. Kiểm tra trong EXTERNAL_MOCK_ROOMS (600 phòng crawl thật từ Chợ Tốt & Phongtro123)
+    const foundLocal = EXTERNAL_MOCK_ROOMS.find((r) => String(r.id) === String(selectedRoomId));
+    if (foundLocal) {
+      setDetailRoom(foundLocal);
+      setDetailError(null);
+      setDetailLoading(false);
+      return;
+    }
+
     setDetailLoading(true);
     setDetailError(null);
 
     const loadDetail = async () => {
       try {
-        const foundLocal = EXTERNAL_MOCK_ROOMS.find((r) => String(r.id) === String(selectedRoomId));
-        if (foundLocal) {
-          if (isMounted) {
-            setDetailRoom(foundLocal);
-            setDetailError(null);
-          }
-          return;
-        }
         const { data } = await api.get(`/rooms/${selectedRoomId}`);
         if (!isMounted) return;
-        setDetailRoom(mapApiRoomToRoom(data));
+        const apiData = data?.data || data;
+        setDetailRoom(mapApiRoomToRoom(apiData));
         setDetailError(null);
         api.post(`/rooms/${selectedRoomId}/view`).catch(() => {});
       } catch (error: any) {
         console.error(`Failed to load room ${selectedRoomId}`, error);
         if (isMounted) {
-          setDetailRoom(null);
-          if (error?.response?.status === 404) {
-            setDetailError("not_found");
+          const fallback = EXTERNAL_MOCK_ROOMS.find((r) => String(r.id) === String(selectedRoomId));
+          if (fallback) {
+            setDetailRoom(fallback);
+            setDetailError(null);
           } else {
-            setDetailError("Không thể kết nối máy chủ. Xin chờ một chút và thử lại.");
+            setDetailRoom(null);
+            if (error?.response?.status === 404 || error?.message?.includes("404")) {
+              setDetailError("not_found");
+            } else {
+              setDetailError("Không thể kết nối máy chủ. Xin chờ một chút và thử lại.");
+            }
           }
         }
       } finally {
@@ -1268,7 +2314,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [view, selectedRoomId, detailReloadKey]);
+  }, [view, selectedRoomId, detailReloadKey, rooms]);
 
   // Hero auto-rotate (chỉ khi đang ở trang chủ để tránh re-render thừa)
   useEffect(() => {
@@ -1369,18 +2415,30 @@ export default function App() {
     );
   }, []);
 
-  const viewRoom = useCallback((id: number) => {
+  const viewRoom = useCallback((id: number | string) => {
+    const found = rooms.find((r) => String(r.id) === String(id))
+      || EXTERNAL_MOCK_ROOMS.find((r) => String(r.id) === String(id));
+    if (found) {
+      setDetailRoom(found);
+      setDetailError(null);
+    }
     navigate(`/rooms/${id}`);
     setShowFilters(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [navigate]);
+  }, [rooms, navigate]);
 
-  const toggleFavorite = useCallback((id: number) => {
-    const roomName = rooms.find((room) => room.id === id)?.name || "phòng này";
-    const wasFavorite = favorites.has(id);
+  const toggleFavorite = useCallback((id: number | string) => {
+    const roomName = rooms.find((room) => String(room.id) === String(id))?.name || "phòng này";
+    const wasFavorite = favorites.has(id as any) || favorites.has(Number(id)) || favorites.has(String(id));
     setFavorites((prev) => {
       const next = new Set(prev);
-      wasFavorite ? next.delete(id) : next.add(id);
+      if (wasFavorite) {
+        next.delete(id as any);
+        next.delete(Number(id));
+        next.delete(String(id));
+      } else {
+        next.add(id);
+      }
       return next;
     });
     setFavoriteNotice(wasFavorite ? `Đã bỏ lưu ${roomName}` : `Đã lưu ${roomName}`);
@@ -2433,960 +3491,6 @@ const goHome = () => {
     </div>
   );
 
-  // ─── DETAIL ──────────────────────────────────────────
-  const DetailPage = () => {
-    const room = detailRoom!;
-    const status = getStatusInfo(room.status);
-    const dist = distances[room.id];
-
-    const [reviews, setReviews] = useState<RoomReview[]>([]);
-    const [loadingReviews, setLoadingReviews] = useState(true);
-    const [reviewAuthor, setReviewAuthor] = useState("");
-    const [reviewRating, setReviewRating] = useState(5);
-    const [reviewComment, setReviewComment] = useState("");
-    const [isAnonymous, setIsAnonymous] = useState(true);
-    const [submittingReview, setSubmittingReview] = useState(false);
-    const [reviewMsg, setReviewMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-    useEffect(() => {
-      let isMounted = true;
-      setLoadingReviews(true);
-      api
-        .get(`/rooms/${room.id}/reviews`)
-        .then((res) => {
-          if (isMounted) {
-            const list = res.data?.data || (Array.isArray(res.data) ? res.data : []);
-            setReviews(list);
-          }
-        })
-        .catch(() => {
-          if (isMounted) setReviews([]);
-        })
-        .finally(() => {
-          if (isMounted) setLoadingReviews(false);
-        });
-      return () => {
-        isMounted = false;
-      };
-    }, [room.id]);
-
-    const handleAddReview = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!reviewComment.trim()) return;
-      setSubmittingReview(true);
-      setReviewMsg(null);
-      try {
-        const payload = {
-          userName: isAnonymous
-            ? reviewAuthor.trim() || "Người dùng ẩn danh"
-            : reviewAuthor.trim() || "Khách xem phòng",
-          rating: Number(reviewRating),
-          comment: reviewComment.trim(),
-          isAnonymous: isAnonymous,
-        };
-        const res = await api.post(`/rooms/${room.id}/reviews`, payload);
-        const created = res.data?.data;
-        if (created) {
-          setReviews((prev) => [created, ...prev]);
-        }
-        setReviewComment("");
-        if (!isAnonymous) setReviewAuthor("");
-        setReviewMsg({
-          type: "success",
-          text: "Cảm ơn bạn! Đánh giá đã được gửi thành công.",
-        });
-        setTimeout(() => setReviewMsg(null), 4000);
-      } catch (err: any) {
-        setReviewMsg({
-          type: "error",
-          text:
-            err.response?.data?.message ||
-            "Không thể gửi đánh giá. Vui lòng thử lại.",
-        });
-      } finally {
-        setSubmittingReview(false);
-      }
-    };
-    const roomInfoItems = [
-      room.area != null && {
-        label: "Diện tích",
-        value: `${room.area} m²`,
-      },
-      room.maxPeople != null && {
-        label: "Số người",
-        value: `Tối đa ${room.maxPeople} người`,
-      },
-      room.district?.trim() && {
-        label: "Quận/Huyện",
-        value: room.district,
-      },
-      room.city?.trim() && {
-        label: "Thành phố",
-        value: room.city,
-      },
-      room.views > 0 && {
-        label: "Lượt xem",
-        value: `${room.views.toLocaleString()} lượt`,
-      },
-      dist != null && {
-        label: "Cách bạn",
-        value:
-          dist < 1
-            ? `${(dist * 1000).toFixed(0)} m`
-            : `${dist.toFixed(1)} km`,
-      },
-    ].filter(
-      (item): item is { label: string; value: string } =>
-        Boolean(item)
-    );
-    const mapsUrl = room.address
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(room.address)}`
-      : `https://www.google.com/maps?q=${room.lat},${room.lng}`;
-    const mapsEmbedUrl = `https://maps.google.com/maps?q=${room.lat},${room.lng}&z=16&output=embed`;
-    const related = rooms
-      .filter(
-        (r) => r.id !== room.id && r.district === room.district,
-      )
-      .slice(0, 3);
-
-    return (
-      <div className="pt-14 min-h-screen">
-        {/* Breadcrumb */}
-        <div className="border-b border-border bg-card">
-          <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-2 text-sm">
-            <button
-              onClick={goHome}
-              className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-            >
-              <Home size={13} /> Trang chủ
-            </button>
-            <ChevronRight
-              size={13}
-              className="text-muted-foreground"
-            />
-            <button
-              onClick={() => navigate("/rooms")}
-              className="text-muted-foreground hover:text-primary"
-            >
-              Danh sách phòng
-            </button>
-            <ChevronRight
-              size={13}
-              className="text-muted-foreground"
-            />
-            <span className="font-semibold text-foreground line-clamp-1">
-              {room.name}
-            </span>
-          </div>
-        </div>
-
-        <div className="mx-auto max-w-7xl px-4 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Gallery */}
-              <ImageGallery
-                images={room.images}
-                name={room.name}
-              />
-
-              {/* Header info */}
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <StatusBadge status={room.status} />
-                    {room.source === "nhatot" && (
-                      <span className="flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-300 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400">
-                        <ExternalLink size={10} /> Chợ Tốt Nhà
-                      </span>
-                    )}
-                    {room.source === "batdongsan" && (
-                      <span className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-300 px-2.5 py-1 text-[11px] font-bold text-blue-700 dark:text-blue-400">
-                        <ExternalLink size={10} /> Batdongsan.com.vn
-                      </span>
-                    )}
-                    {room.source === "phongtro123" && (
-                      <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-300 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                        <ExternalLink size={10} /> Phongtro123
-                      </span>
-                    )}
-                    {room.isFeatured && (
-                      <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
-                        <Star size={10} fill="currentColor" />{" "}
-                        Nổi bật
-                      </span>
-                    )}
-                    <RatingStars rating={room.rating} />
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">
-                    {room.name}
-                  </h1>
-                  <div className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground break-words min-w-0">
-                    <MapPin
-                      size={14}
-                      className="text-primary shrink-0"
-                    />
-                    <span className="break-words">{room.address}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => toggleFavorite(room.id)}
-                    className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
-                      favorites.has(room.id)
-                        ? "bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-800"
-                        : "border-border text-muted-foreground hover:border-red-300 hover:text-red-500"
-                    }`}
-                  >
-                    <Heart
-                      size={14}
-                      fill={
-                        favorites.has(room.id)
-                          ? "currentColor"
-                          : "none"
-                      }
-                    />
-                    {favorites.has(room.id) ? "Đã lưu" : "Lưu"}
-                  </button>
-                  <button className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-all">
-                    <Share2 size={14} /> Chia sẻ
-                  </button>
-                </div>
-              </div>
-
-              {/* Price breakdown */}
-              <div className="rounded-2xl border border-border bg-card p-5">
-                <h2 className="font-bold text-foreground mb-4">
-                  Chi phí hàng tháng
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {[
-                    {
-                      label: "Tiền thuê",
-                      value: formatPriceFull(room.price),
-                      highlight: true,
-                    },
-                    room.electricity != null && {
-                      label: "Điện",
-                      value: `${room.electricity.toLocaleString("vi-VN")} đ/kWh`,
-                    },
-                    room.water != null && {
-                      label: "Nước",
-                      value: formatPriceFull(room.water) + "/người",
-                    },
-                    room.internet != null && {
-                      label: "Internet",
-                      value: formatPriceFull(room.internet),
-                    },
-                    room.serviceFee != null && {
-                      label: "Phí dịch vụ",
-                      value: formatPriceFull(room.serviceFee),
-                    },
-                  ]
-                    .filter(
-                      (
-                        item
-                      ): item is {
-                        label: string;
-                        value: string;
-                        highlight?: boolean;
-                      } => Boolean(item)
-                    )
-                    .map(({ label, value, highlight }) => (
-                    <div
-                      key={label}
-                      className={`rounded-xl p-3 ${highlight ? "bg-primary/10 border border-primary/20" : "bg-muted"}`}
-                    >
-                      <p className="text-[11px] text-muted-foreground font-medium">
-                        {label}
-                      </p>
-                      <p
-                        className={`text-sm font-bold mt-0.5 ${highlight ? "text-primary" : "text-foreground"}`}
-                      >
-                        {value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Details */}
-              {roomInfoItems.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <h2 className="font-bold text-foreground mb-4">
-                    Thông tin phòng
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {roomInfoItems.map(({ label, value }) => (
-                      <div
-                        key={label}
-                        className="rounded-xl bg-muted p-3"
-                      >
-                        <p className="text-[11px] text-muted-foreground">
-                          {label}
-                        </p>
-                        <p className="text-sm font-bold text-foreground mt-0.5 break-words">
-                          {value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Amenities */}
-              {room.amenities.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <h2 className="font-bold text-foreground mb-4">
-                    Tiện ích
-                  </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {room.amenities.map((a) => (
-                      <AmenityBadge key={a} id={a} size="md" />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              {room.description.trim() && (
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <h2 className="font-bold text-foreground mb-3">
-                    Mô tả
-                  </h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed break-words whitespace-pre-line">
-                    {room.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Map */}
-              <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b border-border">
-                  <div className="flex items-center gap-2">
-                    <Map size={16} className="text-primary" />
-                    <h2 className="font-bold text-foreground">
-                      Vị trí phòng
-                    </h2>
-                  </div>
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-                  >
-                    Mở Google Maps <ExternalLink size={11} />
-                  </a>
-                </div>
-                <div className="relative h-64 bg-muted">
-                  {room.lat && room.lng ? (
-                    <Suspense fallback={<div className="h-full bg-muted animate-pulse" />}>
-                      <RoomMap
-                        rooms={[{ id: room.id, title: room.name, lat: room.lat, lng: room.lng, price: room.price, address: room.address, area: room.area, district: room.district }]}
-                        userLat={userLocation?.lat}
-                        userLng={userLocation?.lng}
-                        radiusKm={5}
-                        height="256px"
-                        variant="detail"
-                      />
-                    </Suspense>
-                  ) : (
-                    <iframe
-                      src={mapsEmbedUrl}
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      allowFullScreen
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title="Vị trí phòng"
-                    />
-                  )}
-                </div>
-                <div className="p-4 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground break-words">
-                      {room.address}
-                    </p>
-                    {dist != null && (
-                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <Navigation
-                          size={11}
-                          className="text-primary"
-                        />
-                        Cách bạn{" "}
-                        {dist < 1
-                          ? `${(dist * 1000).toFixed(0)}m`
-                          : `${dist.toFixed(1)}km`}
-                        <Clock size={11} className="ml-2" />~
-                        {Math.ceil(dist * 4)} phút xe máy
-                      </p>
-                    )}
-                  </div>
-                  <a
-                    href={room.address
-                      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(room.address)}`
-                      : `https://www.google.com/maps/dir/?api=1&destination=${room.lat},${room.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white hover:brightness-95 transition-all"
-                  >
-                    <Navigation size={12} /> Chỉ đường
-                  </a>
-                </div>
-              </div>
-
-              {/* Reviews & Google Maps Feedback Section */}
-              <div className="rounded-2xl border border-border bg-card p-5 space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                      <Star size={18} className="text-amber-500 fill-amber-500" />
-                      Đánh giá & Trải nghiệm thực tế
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {reviews.length > 0
-                        ? `${reviews.length} nhận xét từ khách thuê và người xem phòng`
-                        : "Chưa có đánh giá nào cho phòng này"}
-                    </p>
-                  </div>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((room.name || "") + " " + (room.address || ""))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    Xem & Đánh giá trên Google Maps <ExternalLink size={12} />
-                  </a>
-                </div>
-
-                {/* Form thêm đánh giá không cần đăng nhập / ẩn danh */}
-                <form onSubmit={handleAddReview} className="rounded-xl bg-muted/50 p-4 border border-border/60 space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-xs font-bold text-foreground">
-                      Viết đánh giá của bạn (Không cần đăng nhập)
-                    </span>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={isAnonymous}
-                        onChange={(e) => setIsAnonymous(e.target.checked)}
-                        className="rounded text-primary focus:ring-primary h-3.5 w-3.5"
-                      />
-                      Đánh giá ẩn danh
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {!isAnonymous && (
-                      <input
-                        type="text"
-                        placeholder="Tên của bạn (VD: Minh Tuấn)"
-                        value={reviewAuthor}
-                        onChange={(e) => setReviewAuthor(e.target.value)}
-                        className="rounded-xl border border-border bg-input-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    )}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-medium">Mức độ hài lòng:</span>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => setReviewRating(star)}
-                            className="p-1 text-amber-500 hover:scale-110 transition-transform"
-                          >
-                            <Star
-                              size={18}
-                              fill={star <= reviewRating ? "currentColor" : "none"}
-                            />
-                          </button>
-                        ))}
-                      </div>
-                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                        {reviewRating}/5 sao
-                      </span>
-                    </div>
-                  </div>
-
-                  <textarea
-                    rows={3}
-                    placeholder="Chia sẻ trải nghiệm về căn phòng này (an ninh, chủ trọ, không gian, phòng có giống ảnh không...)"
-                    value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-border bg-input-background p-3 text-xs text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-
-                  {reviewMsg && (
-                    <div
-                      className={`text-xs p-2.5 rounded-xl font-medium ${
-                        reviewMsg.type === "success"
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                          : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
-                      }`}
-                    >
-                      {reviewMsg.text}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={submittingReview || !reviewComment.trim()}
-                      className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                    >
-                      {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
-                    </button>
-                  </div>
-                </form>
-
-                {/* Danh sách review */}
-                <div className="space-y-3 pt-1">
-                  {loadingReviews ? (
-                    <p className="text-center text-xs text-muted-foreground py-4">
-                      Đang tải đánh giá...
-                    </p>
-                  ) : reviews.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <p className="text-xs">Chưa có đánh giá nào cho phòng này.</p>
-                      <p className="text-[11px] mt-0.5">Hãy là người đầu tiên chia sẻ cảm nhận thực tế!</p>
-                    </div>
-                  ) : (
-                    reviews.map((rev) => (
-                      <div
-                        key={rev.id}
-                        className="rounded-xl border border-border bg-muted/20 p-3.5 space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
-                              {(rev.userName || rev.user_name || "A")[0].toUpperCase()}
-                            </div>
-                            <span className="text-xs font-bold text-foreground">
-                              {rev.userName || rev.user_name || "Người dùng ẩn danh"}
-                            </span>
-                            {(rev.isAnonymous || rev.is_anonymous) && (
-                              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground font-semibold">
-                                Ẩn danh
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 text-amber-500">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                              <Star
-                                key={s}
-                                size={11}
-                                fill={s <= rev.rating ? "currentColor" : "none"}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-line">
-                          {rev.comment}
-                        </p>
-                        {(rev.createdAt || rev.created_at) && (
-                          <p className="text-[10px] text-muted-foreground">
-                            {new Date(rev.createdAt || rev.created_at!).toLocaleDateString("vi-VN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            })}
-                          </p>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Related */}
-              {related.length > 0 && (
-                <div>
-                  <h2 className="font-bold text-foreground mb-4">
-                    Phòng tương tự tại {room.district}
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {related.map((r) => (
-                      <MemoRoomCard
-                        key={r.id}
-                        room={r}
-                        onView={viewRoom}
-                        onToggleFavorite={toggleFavorite}
-                        isFavorite={favorites.has(r.id)}
-                        distance={distances[r.id]}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Sticky contact card */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-20 space-y-4">
-                {/* Price card */}
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-3xl font-extrabold text-primary">
-                      {formatPrice(room.price)}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      /tháng
-                    </span>
-                  </div>
-                  {(room.area != null || room.maxPeople != null) && (
-                    <p className="text-xs text-muted-foreground mb-4">
-                      {[
-                        `${formatPriceFull(room.price)}/tháng`,
-                        room.area != null && `${room.area}m²`,
-                        room.maxPeople != null &&
-                          `${room.maxPeople} người`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  )}
-
-                  <StatusBadge status={room.status} />
-
-                  {room.status === "available" && (
-                    <div className="mt-4 space-y-2">
-                      {room.phone ? (
-                        <a
-                          href={`tel:${room.phone}`}
-                          onClick={() => handleContact(room)}
-                          className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-lg transition-all hover:brightness-95"
-                        >
-                          <Phone size={16} />
-                          Gọi chủ trọ
-                        </a>
-                      ) : null}
-                      {room.zaloLink ? (
-                        <a
-                          href={room.zaloLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => handleContact(room)}
-                          className="flex w-full items-center justify-center gap-3 rounded-lg border border-primary/30 bg-primary/5 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/10"
-                        >
-                          <MessageCircle size={16} />
-                          Chat Zalo
-                        </a>
-                      ) : null}
-                      {room.externalUrl ? (
-                        <a
-                          href={room.externalUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-orange-700"
-                        >
-                          <ExternalLink size={16} />
-                          Mở bài đăng gốc ({room.source === 'nhatot' ? 'Chợ Tốt Nhà' : room.source === 'batdongsan' ? 'Batdongsan.com.vn' : room.source === 'phongtro123' ? 'Phongtro123.com' : 'Trang nguồn'})
-                        </a>
-                      ) : null}
-                      {!room.phone && !room.zaloLink && (
-                        <p className="rounded-lg bg-muted p-3 text-center text-xs text-muted-foreground">
-                          Phòng chưa có thông tin liên hệ.
-                        </p>
-                      )}
-                      {contactedRooms.has(room.id) && (
-                        <p className="text-center text-xs text-emerald-600 flex items-center justify-center gap-1">
-                          <CheckCircle size={11} /> Đã liên hệ
-                          chủ trọ
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Stats */}
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      {
-                        label: "Lượt xem",
-                        value: room.views,
-                        icon: <Eye size={14} />,
-                      },
-                      {
-                        label: "Liên hệ",
-                        value: room.contacts,
-                        icon: <Phone size={14} />,
-                      },
-                    ].map(({ label, value, icon }) => (
-                      <div
-                        key={label}
-                        className="flex flex-col gap-1"
-                      >
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          {icon} {label}
-                        </span>
-                        <span className="text-lg font-bold text-foreground">
-                          {value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Location note */}
-                {!userLocation && (
-                  <button
-                    onClick={requestLocation}
-                    className="w-full flex items-center gap-2 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 text-sm text-primary font-semibold hover:bg-primary/10 transition-colors"
-                  >
-                    <Navigation size={16} /> Bật vị trí để xem
-                    khoảng cách
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ─── MAP PAGE (Bản đồ trọ gần vị trí của mình - OpenStreetMap) ────────
-  const MapPage = () => {
-    const [selectedRadius, setSelectedRadius] = useState<number>(5); // km, 0 = all
-    const [userGps, setUserGps] = useState<{ lat: number; lng: number } | null>(userLocation);
-    const [locating, setLocating] = useState(false);
-    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-
-    const handleGetLocation = () => {
-      if (!navigator.geolocation) {
-        alert("Trình duyệt của bạn không hỗ trợ định vị GPS.");
-        return;
-      }
-      setLocating(true);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setUserGps(loc);
-          setUserLocation(loc);
-          setLocating(false);
-        },
-        (err) => {
-          console.warn("Geolocation error", err);
-          setLocating(false);
-          alert("Không thể lấy vị trí hiện tại. Vui lòng cho phép quyền truy cập vị trí trên trình duyệt.");
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    };
-
-    const effectiveLat = userGps?.lat ?? 10.7769;
-    const effectiveLng = userGps?.lng ?? 106.7009;
-
-    const validRooms = useMemo(() => {
-      return rooms
-        .filter((r) => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng))
-        .map((r) => {
-          const dist = haversine(effectiveLat, effectiveLng, r.lat!, r.lng!);
-          return { ...r, distanceKm: dist };
-        })
-        .filter((r) => selectedRadius === 0 || r.distanceKm <= selectedRadius)
-        .sort((a, b) => a.distanceKm - b.distanceKm);
-    }, [rooms, effectiveLat, effectiveLng, selectedRadius]);
-
-    const radiusOptions = [
-      { label: "1 km", value: 1 },
-      { label: "3 km", value: 3 },
-      { label: "5 km", value: 5 },
-      { label: "10 km", value: 10 },
-      { label: "Tất cả", value: 0 },
-    ];
-
-    return (
-      <div className="pt-14 min-h-screen bg-background flex flex-col">
-        {/* Top filter bar */}
-        <div className="border-b border-border bg-card px-4 py-3 shadow-sm z-10">
-          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={goHome}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted hover:bg-muted/80 transition-colors"
-                title="Về trang chủ"
-              >
-                <ArrowLeft size={16} />
-              </button>
-              <div>
-                <h1 className="text-base sm:text-lg font-extrabold text-foreground flex items-center gap-2">
-                  <Map className="text-primary" size={18} />
-                  Bản đồ tìm phòng trọ gần bạn
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  {validRooms.length} phòng trọ {selectedRadius > 0 ? `trong bán kính ${selectedRadius}km` : "trên toàn khu vực"}
-                </p>
-              </div>
-            </div>
-
-            {/* Radius Options & GPS button */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={handleGetLocation}
-                disabled={locating}
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-sm ${
-                  userGps
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                    : "bg-card border-border text-foreground hover:border-primary hover:text-primary"
-                }`}
-              >
-                <Navigation size={13} className={locating ? "animate-spin" : ""} />
-                {locating ? "Đang định vị..." : userGps ? "Vị trí của bạn (Đã bật)" : "Định vị vị trí của tôi"}
-              </button>
-
-              <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
-                {radiusOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setSelectedRadius(opt.value)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                      selectedRadius === opt.value
-                        ? "bg-primary text-white shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Split Map & Room List */}
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-          {/* Map view */}
-          <div className="flex-1 h-[50vh] lg:h-[calc(100vh-120px)] relative">
-            <Suspense fallback={<div className="h-full w-full bg-muted animate-pulse flex items-center justify-center text-muted-foreground text-sm">Đang tải bản đồ OpenStreetMap...</div>}>
-              <RoomMap
-                rooms={validRooms.map((r) => ({
-                  id: Number(r.id),
-                  title: r.name,
-                  lat: r.lat!,
-                  lng: r.lng!,
-                  price: r.price,
-                  address: r.address,
-                  area: r.area,
-                  district: r.district,
-                }))}
-                userLat={userGps?.lat}
-                userLng={userGps?.lng}
-                radiusKm={selectedRadius > 0 ? selectedRadius : 15}
-                height="100%"
-                variant="overview"
-                onViewRoom={(id) => {
-                  const target = rooms.find((r) => r.id === id);
-                  if (target) setSelectedRoom(target);
-                }}
-              />
-            </Suspense>
-          </div>
-
-          {/* Sidebar / bottom list */}
-          <div className="w-full lg:w-[420px] bg-card border-t lg:border-t-0 lg:border-l border-border h-[45vh] lg:h-[calc(100vh-120px)] overflow-y-auto p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between pb-2 border-b border-border">
-              <span className="text-sm font-bold text-foreground">
-                Danh sách phòng gần bạn ({validRooms.length})
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Sắp xếp theo khoảng cách
-              </span>
-            </div>
-
-            {validRooms.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-                <MapPin size={32} className="mb-2 opacity-50" />
-                <p className="text-sm font-semibold">Không có phòng trong bán kính này</p>
-                <p className="text-xs mt-1">Hãy thử mở rộng bán kính lên 10km hoặc chọn "Tất cả"</p>
-              </div>
-            ) : (
-              validRooms.map((room) => {
-                const dist = room.distanceKm;
-                const isSelected = selectedRoom?.id === room.id;
-                return (
-                  <div
-                    key={room.id}
-                    onClick={() => setSelectedRoom(room)}
-                    className={`rounded-2xl border p-3 cursor-pointer transition-all hover:shadow-md flex gap-3 ${
-                      isSelected
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                        : "border-border bg-card hover:border-primary/50"
-                    }`}
-                  >
-                    <img
-                      src={room.images?.[0] || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80"}
-                      alt={room.name}
-                      className="w-24 h-24 rounded-xl object-cover shrink-0"
-                    />
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-extrabold text-primary">
-                            {formatPrice(room.price)}/tháng
-                          </span>
-                          {room.area && (
-                            <span className="text-[11px] text-muted-foreground">
-                              · {room.area}m²
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-sm font-bold text-foreground line-clamp-1 mt-0.5" title={room.name}>
-                          {room.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                          {room.address}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/50 text-[11px]">
-                        <span className="text-primary font-semibold flex items-center gap-1">
-                          <Navigation size={11} />
-                          {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(room.address)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary"
-                            title="Chỉ đường Google Maps"
-                          >
-                            <ExternalLink size={13} />
-                          </a>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              viewRoom(Number(room.id));
-                            }}
-                            className="rounded-lg bg-primary px-2.5 py-1 text-xs font-bold text-white hover:brightness-95 transition-all"
-                          >
-                            Xem phòng
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Admin UI removed (managed by database/admin-app)
 
   // ═══════════════════════════════════════════════════════
@@ -3430,7 +3534,20 @@ const goHome = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {DetailPage()}
+            <DetailPage
+              room={detailRoom}
+              distances={distances}
+              favorites={favorites}
+              toggleFavorite={toggleFavorite}
+              goHome={goHome}
+              navigate={navigate}
+              userLocation={userLocation}
+              requestLocation={requestLocation}
+              handleContact={handleContact}
+              contactedRooms={contactedRooms}
+              rooms={rooms}
+              viewRoom={viewRoom}
+            />
           </motion.div>
         )}
         {view === "favorites" && (
@@ -3491,7 +3608,13 @@ const goHome = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {MapPage()}
+            <MapPage
+              rooms={rooms}
+              userLocation={userLocation}
+              setUserLocation={setUserLocation}
+              goHome={goHome}
+              viewRoom={viewRoom}
+            />
           </motion.div>
         )}
         {view === "detail" && !detailRoom && (
