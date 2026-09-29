@@ -84,6 +84,7 @@ import api from "../lib/api";
 import { useNavigate, useLocation } from "react-router";
 
 const RoomMap = lazy(() => import("./components/RoomMap"));
+import { REAL_ROOMS } from "../data/realRooms";
 
 // ═══════════════════════════════════════════════════════
 // TYPES
@@ -331,272 +332,7 @@ const DEFAULT_FILTER: FilterState = {
   source: "all",
 };
 
-export const EXTERNAL_MOCK_ROOMS: Room[] = [
-  {
-    id: 134719785,
-    name: "[Chợ Tốt Nhà] NGAY ĐẠI HỌC VĂN LANG, HỌC VIỆN HÀNH CHÍNH, CÔNG NGHIỆP, MẶT TIỀN DQH",
-    price: 4000000,
-    electricity: 3800,
-    water: 100000,
-    internet: 100000,
-    serviceFee: 150000,
-    area: 25,
-    maxPeople: 2,
-    address: "Đường Dương Quảng Hàm, Phường 5, Quận Gò Vấp",
-    district: "Gò Vấp",
-    city: "TP.HCM",
-    lat: 10.8285,
-    lng: 106.6905,
-    status: "available",
-    description: "Phòng trọ mới xây mặt tiền Dương Quảng Hàm, ngay ĐH Văn Lang CS3, IUH, Học Viện Hành Chính. Full nội thất tiện nghi, giờ giấc tự do, bảo vệ 24/7.",
-    amenities: ["ac", "loft", "wifi", "parking"],
-    images: [
-      "https://cdn.chotot.com/ZsqIuZjmAdMcNgguJqlHjH_6qJYEE0n-cFRXcq4fVMc/preset:view/plain/ebe9fc081551549bf89db893d4e0b66a-3002333277913150393.jpg"
-    ],
-    phone: "0908123456",
-    zaloLink: "https://zalo.me/0908123456",
-    views: 512,
-    contacts: 42,
-    isFeatured: true,
-    isNew: true,
-    isCheap: false,
-    rating: 4.9,
-    source: "nhatot",
-    externalUrl: "https://www.nhatot.com/134719785.htm",
-    createdAt: new Date(Date.now() - 60000).toISOString()
-  },
-  {
-    id: 134884371,
-    name: "[Chợ Tốt Nhà] Phòng Trệt Nguyễn Oanh Full Nội Thất Bếp To rộng rãi chỉ 5tr",
-    price: 5000000,
-    electricity: 3800,
-    water: 100000,
-    internet: 100000,
-    serviceFee: 150000,
-    area: 30,
-    maxPeople: 3,
-    address: "Đường Nguyễn Oanh, Phường 17, Quận Gò Vấp",
-    district: "Gò Vấp",
-    city: "TP.HCM",
-    lat: 10.8354,
-    lng: 106.6775,
-    status: "available",
-    description: "Phòng trệt Nguyễn Oanh diện tích 30m2, bếp riêng rộng rãi, full nội thất cao cấp: máy lạnh, tủ lạnh, giường nệm. Không chung chủ, khóa vân tay.",
-    amenities: ["ac", "kitchen", "wifi", "parking"],
-    images: [
-      "https://cdn.chotot.com/xUqht7M-0JxyC2N5TP9_g40-QDHGGDjI7mEC1T_2RUQ/preset:view/plain/5f174252eee4ecb1f43e17ec7806c0c9-3003641517058168618.jpg"
-    ],
-    phone: "0938123456",
-    zaloLink: "https://zalo.me/0938123456",
-    views: 420,
-    contacts: 31,
-    isFeatured: true,
-    isNew: true,
-    isCheap: false,
-    rating: 4.8,
-    source: "nhatot",
-    externalUrl: "https://www.nhatot.com/134884371.htm",
-    createdAt: new Date(Date.now() - 120000).toISOString()
-  },
-  {
-    id: 702593,
-    name: "[Phongtro123] Ký túc xá Q7 gần Lotte Mart Q7 chỉ 1tr1 trọn gói",
-    price: 1100000,
-    electricity: 0,
-    water: 0,
-    internet: 0,
-    serviceFee: 0,
-    area: 25,
-    maxPeople: 1,
-    address: "34 Đường 36, Phường Tân Hưng, Quận 7",
-    district: "Quận 7",
-    city: "TP.HCM",
-    lat: 10.7431,
-    lng: 106.7002,
-    status: "available",
-    description: "Ký túc xá cao cấp Q7, gần ĐH Tôn Đức Thắng, RMIT, UFM, gần Lotte Mart Q7. Giá 1.1tr trọn gói bao điện nước, máy lạnh 24/24, wifi.",
-    amenities: ["ac", "wifi", "parking", "washing_machine"],
-    images: [
-      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2026/09/03/img-6803_1788369345.png"
-    ],
-    phone: "0931313570",
-    zaloLink: "https://zalo.me/0931313570",
-    views: 680,
-    contacts: 78,
-    isFeatured: true,
-    isNew: true,
-    isCheap: true,
-    rating: 4.9,
-    source: "phongtro123",
-    externalUrl: "https://phongtro123.com/kytucxa-com-vn-chi-nhanh-q7-tron-goi-1tr1-gan-lotte-mart-pr702593.html",
-    createdAt: new Date(Date.now() - 180000).toISOString()
-  },
-  {
-    id: 134947646,
-    name: "[Chợ Tốt Nhà] DUPLEX CỬA SỔ TRỜI CÁCH HUIT 100m, FULL NT ĐẦY ĐỦ",
-    price: 4300000,
-    electricity: 3800,
-    water: 100000,
-    internet: 100000,
-    serviceFee: 150000,
-    area: 28,
-    maxPeople: 3,
-    address: "Đường Tây Thạnh, Phường Tây Thạnh, Quận Tân Phú",
-    district: "Tân Phú",
-    city: "TP.HCM",
-    lat: 10.8122,
-    lng: 106.6288,
-    status: "available",
-    description: "Phòng Duplex gác cao không đụng đầu, có cửa sổ trời thoáng mát, cách ĐH Công Thương (HUIT) 100m. Trang bị full nội thất mới 100%.",
-    amenities: ["ac", "loft", "washing_machine", "wifi"],
-    images: [
-      "https://cdn.chotot.com/dzKewTRu61rsot4VB3BJ5H6j70TGWdYGnWEOCfqvsao/preset:view/plain/ddd387e922543d006a057af8a728bb30-3004135045443229674.jpg"
-    ],
-    phone: "0918123456",
-    zaloLink: "https://zalo.me/0918123456",
-    views: 390,
-    contacts: 29,
-    isFeatured: true,
-    isNew: true,
-    isCheap: false,
-    rating: 4.7,
-    source: "nhatot",
-    externalUrl: "https://www.nhatot.com/134947646.htm",
-    createdAt: new Date(Date.now() - 240000).toISOString()
-  },
-  {
-    id: 649687,
-    name: "[Phongtro123] GẦN NGOẠI THƯƠNG, GTVT, HUTECH, HỒNG BÀNG, UEF - UNG VĂN KHIÊM BÌNH THẠNH",
-    price: 3500000,
-    electricity: 3800,
-    water: 100000,
-    internet: 80000,
-    serviceFee: 100000,
-    area: 22,
-    maxPeople: 2,
-    address: "97/13 Đường Ung Văn Khiêm, Phường 25, Quận Bình Thạnh",
-    district: "Bình Thạnh",
-    city: "TP.HCM",
-    lat: 10.8032,
-    lng: 106.7175,
-    status: "available",
-    description: "Chính chủ cho thuê phòng trọ hẻm xe hơi Ung Văn Khiêm, gần ĐH Ngoại Thương, HUTECH, GTVT. Phòng sạch sẽ, có máy lạnh, kệ bếp, WC khép kín.",
-    amenities: ["ac", "private_wc", "kitchen", "wifi", "parking"],
-    images: [
-      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2024/03/29/2_1711684797.jpg"
-    ],
-    phone: "0909814679",
-    zaloLink: "https://zalo.me/0909814679",
-    views: 560,
-    contacts: 52,
-    isFeatured: true,
-    isNew: true,
-    isCheap: true,
-    rating: 4.8,
-    source: "phongtro123",
-    externalUrl: "https://phongtro123.com/chinh-chu-cho-thue-phong-tro-duong-ung-van-khiem-quan-binh-thanh-pr649687.html",
-    createdAt: new Date(Date.now() - 300000).toISOString()
-  },
-  {
-    id: 712293,
-    name: "[Phongtro123] Ký túc xá Q1 cách Cao Đẳng Cao Thắng 500m trọn gói 1tr4",
-    price: 1400000,
-    electricity: 0,
-    water: 0,
-    internet: 0,
-    serviceFee: 0,
-    area: 20,
-    maxPeople: 1,
-    address: "29 Đường Calmette, Phường Bến Thành, Quận 1",
-    district: "Quận 1",
-    city: "TP.HCM",
-    lat: 10.7698,
-    lng: 106.6978,
-    status: "available",
-    description: "KTX Quận 1 cao cấp ngay trung tâm, cách Chợ Bến Thành và Cao Đẳng Kỹ Thuật Cao Thắng 500m. Bao trọn gói điện nước sinh hoạt, wifi.",
-    amenities: ["ac", "wifi", "parking"],
-    images: [
-      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2026/09/01/img-6803_1788232468.png"
-    ],
-    phone: "0931313570",
-    zaloLink: "https://zalo.me/0931313570",
-    views: 480,
-    contacts: 39,
-    isFeatured: false,
-    isNew: true,
-    isCheap: true,
-    rating: 4.7,
-    source: "phongtro123",
-    externalUrl: "https://phongtro123.com/ky-tuc-xa-q1-cach-cao-dang-cao-thang-500m-tron-goi-1tr4-pr712293.html",
-    createdAt: new Date(Date.now() - 360000).toISOString()
-  },
-  {
-    id: 39821345,
-    name: "[Batdongsan] Cho thuê phòng trọ cao cấp full nội thất ngay Trung tâm Quận 11",
-    price: 3800000,
-    electricity: 3800,
-    water: 100000,
-    internet: 100000,
-    serviceFee: 150000,
-    area: 25,
-    maxPeople: 2,
-    address: "Đường Lê Đại Hành, Phường 11, Quận 11",
-    district: "Quận 11",
-    city: "TP.HCM",
-    lat: 10.7645,
-    lng: 106.6542,
-    status: "available",
-    description: "Phòng trọ cao cấp ngay trung tâm Quận 11 gần Parkson Flemington, ĐH Bách Khoa. Trang bị full nội thất cao cấp: máy lạnh inverter, tủ quần áo, giường nệm.",
-    amenities: ["ac", "private_wc", "wifi", "parking"],
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80"
-    ],
-    phone: "0977112233",
-    zaloLink: "https://zalo.me/0977112233",
-    views: 720,
-    contacts: 64,
-    isFeatured: true,
-    isNew: false,
-    isCheap: false,
-    rating: 4.8,
-    source: "batdongsan",
-    externalUrl: "https://batdongsan.com.vn/cho-thue-phong-tro-nha-tro-tp-hcm",
-    createdAt: new Date(Date.now() - 420000).toISOString()
-  },
-  {
-    id: 39751289,
-    name: "[Batdongsan] Căn hộ mini studio ban công thoáng mát gần Lotte Mart Quận 7",
-    price: 4500000,
-    electricity: 4000,
-    water: 120000,
-    internet: 100000,
-    serviceFee: 200000,
-    area: 32,
-    maxPeople: 2,
-    address: "28 Đường số 9, Phường Tân Phú, Quận 7",
-    district: "Quận 7",
-    city: "TP.HCM",
-    lat: 10.7385,
-    lng: 106.7112,
-    status: "available",
-    description: "Căn hộ studio mini diện tích 32m2 có ban công thoáng mát, view đẹp. Đầy đủ tiện nghi: máy lạnh, máy giặt riêng, bếp nấu ăn, thang máy, hầm giữ xe.",
-    amenities: ["ac", "balcony", "washing_machine", "kitchen", "wifi", "parking"],
-    images: [
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80"
-    ],
-    phone: "0912345678",
-    zaloLink: "https://zalo.me/0912345678",
-    views: 850,
-    contacts: 71,
-    isFeatured: true,
-    isNew: false,
-    isCheap: false,
-    rating: 4.9,
-    source: "batdongsan",
-    externalUrl: "https://batdongsan.com.vn/cho-thue-phong-tro-nha-tro-tp-hcm",
-    createdAt: new Date(Date.now() - 480000).toISOString()
-  }
-];
+export const EXTERNAL_MOCK_ROOMS: Room[] = REAL_ROOMS as unknown as Room[];
 
 // ═══════════════════════════════════════════════════════
 // UTILS
@@ -1441,8 +1177,18 @@ export default function App() {
         const { data } = await api.get("/rooms");
         if (isMounted) {
           const apiRooms = (Array.isArray(data) ? data : []).map(mapApiRoomToRoom);
-          const hasExternal = apiRooms.some((r) => r.source && r.source !== "local");
-          const finalRooms = hasExternal ? apiRooms : [...EXTERNAL_MOCK_ROOMS, ...apiRooms];
+          const roomMap = new Map<string, Room>();
+          // Thêm toàn bộ hơn 600 tin thật 100% từ Chợ Tốt & Phongtro123
+          for (const ext of EXTERNAL_MOCK_ROOMS) {
+            roomMap.set(String(ext.id), ext);
+          }
+          // Bổ sung hoặc cập nhật phòng từ API
+          for (const ar of apiRooms) {
+            roomMap.set(String(ar.id), ar);
+          }
+          const finalRooms = Array.from(roomMap.values()).sort(
+            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          );
           setRooms(finalRooms);
           setRoomsError(null);
         }
