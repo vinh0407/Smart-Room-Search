@@ -34,7 +34,8 @@
 
 | Bản | File | Kích thước |
 |---|---|---|
-| Smart Room Search v1.0 | [**SmartRoomSearch-v1.0.apk**](https://github.com/vinh0407/smart-room-search/raw/main/APK/SmartRoomSearch-v1.0.apk) | ~27 MB |
+| **Smart Room Search v2.0 (Mới nhất)** | [**SmartRoomSearch-v2.0.apk**](https://github.com/vinh0407/smart-room-search/raw/main/APK/SmartRoomSearch-v2.0.apk) | ~28 MB |
+| Smart Room Search v1.0 | [**SmartRoomSearch-v1.0.apk**](https://github.com/vinh0407/smart-room-search/raw/main/APK/SmartRoomSearch-v1.0.apk) | ~28 MB |
 
 App Android (native **Kotlin + Jetpack Compose**) gồm đầy đủ:
 
@@ -245,5 +246,4 @@ node scripts/migrate-to-mysql.js
 - GitHub: [vinh0407/smart-room-search](https://github.com/vinh0407/smart-room-search)
 - Website: https://smart-room-search.vercel.app
 - Admin Web: https://smart-room-admin.vercel.app
-- API: https://smart-room-api.smart-room-backend.workers.dev
-- APK: [SmartRoomSearch-v1.0.apk](https://github.com/vinh0407/smart-room-search/raw/main/APK/SmartRoomSearch-v1.0.apk)
+- APK: [SmartRoomSearch-v2.0.apk](https://github.com/vinh0407/smart-room-search/raw/main/APK/SmartRoomSearch-v2.0.apk) (hoặc [bản v1.0](https://github.com/vinh0407/smart-room-search/raw/main/APK/SmartRoomSearch-v1.0.apk))

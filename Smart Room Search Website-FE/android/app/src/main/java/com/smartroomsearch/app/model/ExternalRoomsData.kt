@@ -1,8 +1,10 @@
 package com.smartroomsearch.app.model
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.json.JSONArray
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -13,6 +15,80 @@ import java.util.Locale
 
 object ExternalRoomsData {
     private val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+    private var appContext: Context? = null
+    private var cachedRooms: List<Room>? = null
+
+    fun init(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    fun loadRoomsFromAssets(): List<Room> {
+        cachedRooms?.let { if (it.isNotEmpty()) return it }
+        val ctx = appContext ?: return getExternalRooms()
+        try {
+            val jsonString = ctx.assets.open("real_rooms.json").bufferedReader().use { it.readText() }
+            val jsonArray = JSONArray(jsonString)
+            val list = mutableListOf<Room>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val imgList = mutableListOf<String>()
+                val imgArr = obj.optJSONArray("images")
+                if (imgArr != null) {
+                    for (j in 0 until imgArr.length()) {
+                        imgList.add(imgArr.getString(j))
+                    }
+                }
+                val amenList = mutableListOf<String>()
+                val amenArr = obj.optJSONArray("amenities")
+                if (amenArr != null) {
+                    for (j in 0 until amenArr.length()) {
+                        amenList.add(amenArr.getString(j))
+                    }
+                }
+                list.add(
+                    Room(
+                        id = obj.optInt("id", (i + 1)),
+                        title = obj.optString("title", "Phòng trọ"),
+                        description = obj.optString("description", ""),
+                        address = obj.optString("address", "TP.HCM"),
+                        price = obj.optDouble("price", 0.0),
+                        area = obj.optDouble("area", 20.0),
+                        images = imgList,
+                        status = RoomStatus.available,
+                        electricity = obj.optInt("electricity", 3800),
+                        water = obj.optInt("water", 100000),
+                        internet = obj.optInt("internet", 100000),
+                        serviceFee = obj.optInt("serviceFee", 150000),
+                        maxPeople = obj.optInt("maxPeople", 2),
+                        district = obj.optString("district", "Quận 1"),
+                        city = obj.optString("city", "TP.HCM"),
+                        lat = obj.optDouble("lat", 10.7731),
+                        lng = obj.optDouble("lng", 106.6952),
+                        amenities = amenList,
+                        phone = obj.optString("phone", "0908123456"),
+                        zaloLink = obj.optString("zaloLink", "https://zalo.me/0908123456"),
+                        views = obj.optInt("views", 100),
+                        contacts = obj.optInt("contacts", 10),
+                        isFeatured = obj.optBoolean("isFeatured", false),
+                        isNew = obj.optBoolean("isNew", false),
+                        isCheap = obj.optBoolean("isCheap", false),
+                        rating = obj.optDouble("rating", 4.8),
+                        source = obj.optString("source", "nhatot"),
+                        externalUrl = if (obj.has("externalUrl") && !obj.isNull("externalUrl")) obj.optString("externalUrl") else null,
+                        createdAt = if (obj.has("created_at") && !obj.isNull("created_at")) obj.optString("created_at") else null,
+                        updatedAt = if (obj.has("updated_at") && !obj.isNull("updated_at")) obj.optString("updated_at") else null
+                    )
+                )
+            }
+            if (list.isNotEmpty()) {
+                cachedRooms = list
+                return list
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return getExternalRooms()
+    }
 
     /**
      * Tự động crawl và cập nhật phòng thật theo thời gian thực từ live API Chợ Tốt Nhà.
@@ -154,12 +230,14 @@ object ExternalRoomsData {
                 }
             }
 
+            val assetRooms = loadRoomsFromAssets()
             if (liveRooms.isNotEmpty()) {
-                return@withContext liveRooms
+                val liveIds = liveRooms.map { it.id }.toSet()
+                return@withContext liveRooms + assetRooms.filter { !liveIds.contains(it.id) }
             }
-            getExternalRooms()
+            assetRooms
         } catch (e: Exception) {
-            getExternalRooms()
+            loadRoomsFromAssets()
         }
     }
 

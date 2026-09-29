@@ -3013,7 +3013,20 @@ const goHome = () => {
             exit={{ height: 0, opacity: 0 }}
             className="border-t border-border bg-card overflow-hidden"
           >
-            <div className="px-4 py-3 space-y-1">
+            <div className="px-4 py-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCityModal(true);
+                  setMobileMenu(false);
+                }}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <MapPin size={16} /> Khu vực: {selectedCity}
+                </span>
+                <span className="text-xs bg-primary text-white rounded-md px-2 py-0.5">Đổi tỉnh</span>
+              </button>
               <button
                 onClick={() => {
                   navigate("/rooms");

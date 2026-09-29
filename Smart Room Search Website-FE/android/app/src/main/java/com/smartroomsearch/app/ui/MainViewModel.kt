@@ -62,18 +62,19 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                // Immediately display 600 real rooms so UI is populated without network delay
+                val assetRooms = ExternalRoomsData.loadRoomsFromAssets()
+                if (assetRooms.isNotEmpty()) {
+                    _rooms.value = assetRooms
+                }
+
                 val externalRooms = ExternalRoomsData.fetchLiveRooms()
                 val roomResponse = repository.getRooms()
                 val apiRooms = if (roomResponse.isSuccessful) roomResponse.body() ?: emptyList() else emptyList()
                 
-                // Merge: Put external rooms at top if not already included from backend
-                val hasExternal = apiRooms.any { it.source != null && it.source != "local" }
-                val mergedRooms = if (hasExternal) {
-                    apiRooms
-                } else {
-                    externalRooms + apiRooms
-                }
-                _rooms.value = mergedRooms
+                val apiIds = apiRooms.map { it.id }.toSet()
+                val combined = apiRooms + externalRooms.filter { !apiIds.contains(it.id) }
+                _rooms.value = combined
 
                 val demandResponse = repository.getDemands()
                 if (demandResponse.isSuccessful) {
@@ -81,9 +82,8 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                // In case of network error, still display external rooms
                 if (_rooms.value.isEmpty()) {
-                    _rooms.value = ExternalRoomsData.getExternalRooms()
+                    _rooms.value = ExternalRoomsData.loadRoomsFromAssets()
                 }
             } finally {
                 _isLoading.value = false
