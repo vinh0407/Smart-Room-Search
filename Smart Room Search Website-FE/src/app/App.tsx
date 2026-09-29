@@ -85,6 +85,14 @@ import { useNavigate, useLocation } from "react-router";
 
 const RoomMap = lazy(() => import("./components/RoomMap"));
 import { REAL_ROOMS } from "../data/realRooms";
+import {
+  CITIES,
+  DISTRICT_CATEGORIES,
+  ALL_HCM_DISTRICTS,
+  SOURCE_OPTIONS,
+  getWardsForDistrict,
+  CityItem,
+} from "../data/locations";
 
 // ═══════════════════════════════════════════════════════
 // TYPES
@@ -193,6 +201,9 @@ interface FilterState {
   areaMin: number;
   areaMax: number;
   district: string;
+  ward?: string;
+  districtCategory?: string;
+  city?: string;
   amenities: string[];
   status: string;
   source?: string;
@@ -539,19 +550,24 @@ function RoomCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             <StatusBadge status={room.status} />
+            {(!room.source || room.source === "local") && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+                <CheckCircle size={9} /> Chính chủ (Web tôi)
+              </span>
+            )}
             {room.source === "nhatot" && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
-                <ExternalLink size={9} /> Chợ Tốt Nhà
+                <ExternalLink size={9} /> Nguồn ngoài: Chợ Tốt Nhà
               </span>
             )}
             {room.source === "batdongsan" && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
-                <ExternalLink size={9} /> Batdongsan.com.vn
+                <ExternalLink size={9} /> Nguồn ngoài: Batdongsan
               </span>
             )}
             {room.source === "phongtro123" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
-                <ExternalLink size={9} /> Phongtro123
+              <span className="inline-flex items-center gap-1 rounded-full bg-teal-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+                <ExternalLink size={9} /> Nguồn ngoài: Phongtro123
               </span>
             )}
             {room.isFeatured && (
@@ -821,11 +837,13 @@ function FilterPanel({
     onChange({ amenities: next });
   };
 
+  const currentWards = getWardsForDistrict(filters.district);
+
   return (
     <div className="flex flex-col gap-5">
       {onClose && (
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-foreground">Bộ lọc</h3>
+          <h3 className="font-bold text-foreground">Bộ lọc phòng trọ</h3>
           <button
             type="button"
             onClick={onClose}
@@ -837,10 +855,180 @@ function FilterPanel({
         </div>
       )}
 
-      {/* Status */}
+      {/* Nguồn đăng & Xuất xứ phòng */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Trạng thái
+          Nguồn đăng / Xuất xứ
+        </p>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            {[
+              ["all", "Tất cả nguồn"],
+              ["local", "Chính chủ (Web tôi)"],
+              ["external", "Nguồn ngoài (Tổng hợp)"],
+            ].map(([v, l]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => onChange({ source: v })}
+                className={`rounded-full px-3 py-1 text-xs font-semibold border transition-all ${
+                  (filters.source || "all") === v
+                    ? "bg-primary text-white border-primary shadow-sm"
+                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
+            <span className="text-[11px] text-muted-foreground self-center mr-1">Trang ngoài:</span>
+            {[
+              ["nhatot", "Chợ Tốt Nhà"],
+              ["batdongsan", "Batdongsan.com.vn"],
+              ["phongtro123", "Phongtro123.com"],
+            ].map(([v, l]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => onChange({ source: v })}
+                className={`rounded-lg px-2 py-0.5 text-[11px] font-medium border transition-all ${
+                  filters.source === v
+                    ? "bg-primary/10 border-primary text-primary font-bold"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Danh mục khu vực quận */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Danh mục khu vực quận
+          </p>
+          {filters.districtCategory && filters.districtCategory !== "Tất cả" && (
+            <button
+              type="button"
+              onClick={() => onChange({ districtCategory: "Tất cả", district: "Tất cả", ward: "Tất cả" })}
+              className="text-[11px] text-primary hover:underline"
+            >
+              Bỏ chọn
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["Tất cả", ...DISTRICT_CATEGORIES.map((c) => c.name)].map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                onChange({
+                  districtCategory: cat,
+                  district: "Tất cả",
+                  ward: "Tất cả",
+                });
+              }}
+              className={`rounded-lg px-2.5 py-1 text-xs font-medium border transition-all ${
+                (filters.districtCategory || "Tất cả") === cat
+                  ? "bg-primary text-white border-primary shadow-sm"
+                  : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quận / huyện */}
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Quận / huyện
+        </p>
+        <select
+          value={filters.district}
+          onChange={(e) => {
+            const d = e.target.value;
+            onChange({ district: d, ward: "Tất cả" });
+          }}
+          className="w-full rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 sm:text-sm"
+        >
+          <option value="Tất cả">Tất cả quận / huyện</option>
+          {DISTRICT_CATEGORIES.map((cat) => (
+            <optgroup key={cat.name} label={`── ${cat.name} ──`}>
+              {cat.districts.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      {/* Phường / xã (hiển thị option phường khi chọn vào 1 quận bất kì) */}
+      {filters.district && filters.district !== "Tất cả" && (
+        <div className="rounded-xl bg-muted/40 p-3 border border-border/60">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">
+              Phường / Xã ({filters.district})
+            </p>
+            {filters.ward && filters.ward !== "Tất cả" && (
+              <button
+                type="button"
+                onClick={() => onChange({ ward: "Tất cả" })}
+                className="text-[11px] text-muted-foreground hover:text-primary"
+              >
+                Xóa chọn phường
+              </button>
+            )}
+          </div>
+          <select
+            value={filters.ward || "Tất cả"}
+            onChange={(e) => onChange({ ward: e.target.value })}
+            className="w-full rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 sm:text-sm"
+          >
+            {currentWards.map((w) => (
+              <option key={w} value={w}>
+                {w === "Tất cả" ? `Tất cả phường tại ${filters.district}` : w}
+              </option>
+            ))}
+          </select>
+
+          {/* Quick chips chọn nhanh phường */}
+          {currentWards.length > 1 && (
+            <div className="flex flex-wrap gap-1 mt-2.5 max-h-28 overflow-y-auto pr-1">
+              {currentWards
+                .filter((w) => w !== "Tất cả")
+                .map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => onChange({ ward: filters.ward === w ? "Tất cả" : w })}
+                    className={`rounded-md px-2 py-0.5 text-[11px] border transition-all ${
+                      filters.ward === w
+                        ? "bg-primary text-white border-primary font-bold"
+                        : "border-border/80 bg-card text-muted-foreground hover:border-primary"
+                    }`}
+                  >
+                    {w}
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Trạng thái phòng */}
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Trạng thái phòng
         </p>
         <div className="flex flex-wrap gap-2">
           {[
@@ -865,36 +1053,7 @@ function FilterPanel({
         </div>
       </div>
 
-      {/* Nguồn đăng */}
-      <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Nguồn đăng
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {[
-            ["all", "Tất cả nguồn"],
-            ["nhatot", "Chợ Tốt Nhà"],
-            ["batdongsan", "Batdongsan.com.vn"],
-            ["phongtro123", "Phongtro123.com"],
-            ["local", "Trọ Xịn"],
-          ].map(([v, l]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => onChange({ source: v })}
-              className={`rounded-full px-3 py-1 text-xs font-semibold border transition-all ${
-                (filters.source || "all") === v
-                  ? "bg-primary text-white border-primary"
-                  : "border-border text-muted-foreground hover:border-primary hover:text-primary"
-              }`}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Price */}
+      {/* Giá thuê */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Giá thuê: {formatPrice(filters.priceMin)} —{" "}
@@ -951,7 +1110,7 @@ function FilterPanel({
         </div>
       </div>
 
-      {/* Area */}
+      {/* Diện tích */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Diện tích: {filters.areaMin}–
@@ -970,27 +1129,7 @@ function FilterPanel({
         />
       </div>
 
-      {/* District */}
-      <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Quận / huyện
-        </p>
-        <select
-          value={filters.district}
-          onChange={(e) =>
-            onChange({ district: e.target.value })
-          }
-          className="w-full rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 sm:text-sm"
-        >
-          {DISTRICTS.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Amenities */}
+      {/* Tiện ích */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Tiện ích
@@ -2051,6 +2190,96 @@ function MapPage({
   );
 }
 
+
+// ═══════════════════════════════════════════════════════
+// CITY MODAL COMPONENT
+// ═══════════════════════════════════════════════════════
+function CityModal({
+  isOpen,
+  onClose,
+  selectedCity,
+  onSelectCity,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedCity: string;
+  onSelectCity: (cityName: string) => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="city-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4"
+      >
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <MapPin size={16} />
+            </div>
+            <div>
+              <h3 id="city-modal-title" className="text-base font-extrabold text-foreground">
+                Chọn Tỉnh / Thành Phố
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Xem phòng trọ theo từng tỉnh thành phố
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Đóng"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 max-h-[60vh] overflow-y-auto pr-1">
+          {CITIES.map((city) => {
+            const isSelected = selectedCity.includes(city.shortName) || selectedCity === city.name;
+            return (
+              <button
+                key={city.id}
+                type="button"
+                onClick={() => onSelectCity(city.name)}
+                className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
+                  isSelected
+                    ? "border-primary bg-primary/10 text-primary font-bold shadow-sm"
+                    : "border-border bg-card hover:border-primary/50 hover:bg-muted/40 text-foreground"
+                }`}
+              >
+                <div>
+                  <p className="text-xs font-bold leading-tight">{city.name}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {city.id === 'hcm' ? '600+ tin đăng' : 'Đang đồng bộ'}
+                  </p>
+                </div>
+                {isSelected && <Check size={14} className="text-primary shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
+          💡 Hiện tại <strong className="text-foreground">TP. Hồ Chí Minh</strong> có hơn 600 phòng thật đang hiển thị trực tiếp. Các tỉnh thành khác đang được kết nối dữ liệu.
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════
@@ -2086,6 +2315,10 @@ export default function App() {
     }
   });
   const [favoriteNotice, setFavoriteNotice] = useState("");
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    return localStorage.getItem("sr_city") || "TP. Hồ Chí Minh";
+  });
+  const [showCityModal, setShowCityModal] = useState(false);
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("sr_dark") === "1",
   );
@@ -2349,6 +2582,29 @@ export default function App() {
         (r.area == null || r.area > filters.areaMax)
       )
         return false;
+      // Lọc theo tỉnh / thành phố
+      if (
+        filters.city &&
+        filters.city !== "Tất cả" &&
+        r.city &&
+        !r.city.toLowerCase().includes(filters.city.toLowerCase().replace("tp.", "").replace("thành phố", "").trim()) &&
+        !filters.city.toLowerCase().includes(r.city.toLowerCase())
+      ) {
+        return false;
+      }
+
+      // Lọc theo danh mục khu vực quận
+      if (filters.districtCategory && filters.districtCategory !== "Tất cả") {
+        const cat = DISTRICT_CATEGORIES.find((c) => c.name === filters.districtCategory);
+        if (cat) {
+          const matchDist = cat.districts.some(
+            (d) => r.district === d || (r.address && r.address.includes(d)) || r.district.toLowerCase().includes(d.toLowerCase())
+          );
+          if (!matchDist) return false;
+        }
+      }
+
+      // Lọc theo quận / huyện
       if (
         filters.district !== "Tất cả" &&
         r.district !== filters.district &&
@@ -2356,6 +2612,26 @@ export default function App() {
         !filters.district.toLowerCase().includes(r.district.toLowerCase().replace("quận ", ""))
       )
         return false;
+
+      // Lọc theo phường / xã khi chọn quận bất kì
+      if (filters.ward && filters.ward !== "Tất cả") {
+        const cleanWard = filters.ward.toLowerCase().replace(/^phường\s+/i, "").replace(/^xã\s+/i, "").trim();
+        const addressLower = (r.address || "").toLowerCase();
+        if (!addressLower.includes(cleanWard)) {
+          return false;
+        }
+      }
+
+      // Lọc theo nguồn phòng (web tôi vs web ngoài)
+      if (filters.source && filters.source !== "all") {
+        if (filters.source === "local") {
+          if (r.source && r.source !== "local") return false;
+        } else if (filters.source === "external") {
+          if (!r.source || r.source === "local") return false;
+        } else {
+          if (r.source !== filters.source) return false;
+        }
+      }
       if (
         filters.amenities.length > 0 &&
         !filters.amenities.every((a) => r.amenities.includes(a))
@@ -2678,6 +2954,18 @@ const goHome = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2 ml-auto md:ml-0">
+            {/* Nút chọn Tỉnh / Thành phố */}
+            <button
+              type="button"
+              onClick={() => setShowCityModal(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-primary transition-all shadow-sm"
+              title="Chọn tỉnh / thành phố"
+            >
+              <MapPin size={13} className="text-primary shrink-0" />
+              <span className="max-w-[70px] sm:max-w-[120px] truncate">{selectedCity.replace("TP. ", "")}</span>
+              <ChevronDown size={11} className="text-primary/70 shrink-0" />
+            </button>
+
             <button
               type="button"
               aria-label="Mở phòng đã thích"
@@ -3328,14 +3616,15 @@ const goHome = () => {
           </div>
         </div>
 
-        {/* Source Filter Tabs */}
-        <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+        {/* Origin & Source Filter Tabs */}
+        <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
           {[
-            { id: "all", label: "Tất cả nguồn" },
+            { id: "all", label: "Tất cả tin (600+)" },
+            { id: "local", label: "✨ Chính chủ (Web tôi)" },
+            { id: "external", label: "🌐 Nguồn ngoài (Tổng hợp)" },
             { id: "nhatot", label: "Chợ Tốt Nhà" },
             { id: "batdongsan", label: "Batdongsan.com.vn" },
             { id: "phongtro123", label: "Phongtro123.com" },
-            { id: "local", label: "Trọ Xịn Chính Chủ" },
           ].map((item) => {
             const isActive = (filters.source || "all") === item.id;
             return (
@@ -3343,7 +3632,7 @@ const goHome = () => {
                 key={item.id}
                 type="button"
                 onClick={() => updateFilter({ source: item.id })}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold border transition-all ${
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold border transition-all ${
                   isActive
                     ? "bg-primary text-white border-primary shadow-sm"
                     : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -3354,6 +3643,76 @@ const goHome = () => {
             );
           })}
         </div>
+
+        {/* District Categories Filter Tabs */}
+        <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+          <span className="text-xs text-muted-foreground font-semibold shrink-0">Khu vực:</span>
+          {[
+            { id: "Tất cả", label: "Toàn thành phố" },
+            ...DISTRICT_CATEGORIES.map((c) => ({ id: c.name, label: c.name.replace("Khu vực ", "") })),
+          ].map((item) => {
+            const isActive = (filters.districtCategory || "Tất cả") === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() =>
+                  updateFilter({
+                    districtCategory: item.id,
+                    district: "Tất cả",
+                    ward: "Tất cả",
+                  })
+                }
+                className={`flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold border transition-all ${
+                  isActive
+                    ? "bg-foreground text-background border-foreground font-bold shadow-sm"
+                    : "border-border/80 bg-muted/30 text-muted-foreground hover:border-primary hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Dynamic Ward Pills (hiển thị khi chọn 1 quận bất kì) */}
+        {filters.district && filters.district !== "Tất cả" && (
+          <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                <MapPin size={13} /> Phường / Xã tại {filters.district}:
+              </span>
+              {filters.ward && filters.ward !== "Tất cả" && (
+                <button
+                  type="button"
+                  onClick={() => updateFilter({ ward: "Tất cả" })}
+                  className="text-xs text-primary font-bold hover:underline"
+                >
+                  Xem tất cả phường
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+              {getWardsForDistrict(filters.district).map((w) => {
+                const isWardActive = (filters.ward || "Tất cả") === w;
+                return (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => updateFilter({ ward: w })}
+                    className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium border transition-all ${
+                      isWardActive
+                        ? "bg-primary text-white border-primary font-bold shadow-sm"
+                        : "border-border bg-card text-muted-foreground hover:border-primary hover:text-primary"
+                    }`}
+                  >
+                    {w}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-6">
           {/* Sidebar filter */}
@@ -3669,6 +4028,23 @@ const goHome = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CityModal
+        isOpen={showCityModal}
+        onClose={() => setShowCityModal(false)}
+        selectedCity={selectedCity}
+        onSelectCity={(cityName) => {
+          setSelectedCity(cityName);
+          localStorage.setItem("sr_city", cityName);
+          updateFilter({
+            city: cityName,
+            district: "Tất cả",
+            ward: "Tất cả",
+            districtCategory: "Tất cả",
+          });
+          setShowCityModal(false);
+        }}
+      />
 
       <AnimatePresence>
         {showDemandMenu && (

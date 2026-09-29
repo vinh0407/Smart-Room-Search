@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, Component, ErrorInfo, ReactNode } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Fix Leaflet default icon paths in bundlers
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -19,7 +20,7 @@ const userIcon = new L.Icon({
 });
 
 export interface RoomMarker {
-  id: number;
+  id: number | string;
   title: string;
   lat: number;
   lng: number;
@@ -35,7 +36,7 @@ interface RoomMapProps {
   userLng?: number | null;
   radiusKm?: number;
   height?: string;
-  onViewRoom?: (id: number) => void;
+  onViewRoom?: (id: number | string) => void;
   /** detail = zoom vào phòng; overview = xem nhiều phòng + vị trí user */
   variant?: 'overview' | 'detail';
 }
@@ -46,6 +47,23 @@ const formatPrice = (price?: number) =>
 const isTouchDevice = () =>
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || window.matchMedia('(hover: none)').matches);
+
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 150);
+    const t2 = setTimeout(() => map.invalidateSize(), 600);
+    const handleResize = () => map.invalidateSize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
+  return null;
+}
 
 function FitBounds({
   rooms,
@@ -60,35 +78,47 @@ function FitBounds({
 }) {
   const map = useMap();
   useEffect(() => {
+    if (!map) return;
     const roomPoints: [number, number][] = rooms.map((r) => [r.lat, r.lng]);
-    if (roomPoints.length === 0) return;
-
-    if (variant === 'detail') {
-      map.setView(roomPoints[0], 16, { animate: false });
+    if (roomPoints.length === 0) {
+      if (userLat && userLng) {
+        map.setView([userLat, userLng], 14);
+      }
       return;
     }
 
-    const points = [...roomPoints];
+    if (variant === 'detail') {
+      map.setView(roomPoints[0], 16);
+      return;
+    }
+
+    const points: [number, number][] = [...roomPoints];
     if (userLat && userLng) points.push([userLat, userLng]);
 
-    // Đảm bảo map không bị zoom quá xa hoặc quá gần một cách bất thường
     try {
-      if (points.length > 0) {
+      if (points.length === 1) {
+        map.setView(points[0], 15);
+      } else if (points.length > 1) {
         map.fitBounds(points, {
           padding: [50, 50],
           maxZoom: 16,
-          animate: true,
-          duration: 1
+          animate: false,
         });
       }
     } catch (e) {
-      console.error("Map fitBounds error", e);
+      console.warn('Map fitBounds warning', e);
     }
-  }, [rooms, userLat, userLng, map, variant]);
+  }, [rooms.length, userLat, userLng, map, variant]);
   return null;
 }
 
-function RoomMarkerItem({ room, onViewRoom }: { room: RoomMarker; onViewRoom?: (id: number) => void }) {
+function RoomMarkerItem({
+  room,
+  onViewRoom,
+}: {
+  room: RoomMarker;
+  onViewRoom?: (id: number | string) => void;
+}) {
   const markerRef = useRef<L.Marker>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -130,35 +160,74 @@ function RoomMarkerItem({ room, onViewRoom }: { room: RoomMarker; onViewRoom?: (
           },
         }}
       >
-        <div className="room-map-popup">
-          <p className="room-map-popup__title">{room.title}</p>
+        <div className="room-map-popup p-1 max-w-[220px]">
+          <p className="font-bold text-xs text-foreground line-clamp-2">{room.title}</p>
           {room.price != null && room.price > 0 && (
-            <p className="room-map-popup__price">{formatPrice(room.price)}</p>
+            <p className="font-extrabold text-xs text-primary mt-1">{formatPrice(room.price)}</p>
           )}
           {(room.district || room.area) && (
-            <p className="room-map-popup__meta">
+            <p className="text-[11px] text-muted-foreground mt-0.5">
               {[room.district, room.area ? `${room.area} m²` : ''].filter(Boolean).join(' · ')}
             </p>
           )}
           {room.address && (
-            <p className="room-map-popup__address">{room.address}</p>
+            <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{room.address}</p>
           )}
           {onViewRoom && (
             <button
               type="button"
-              className="room-map-popup__btn"
+              className="mt-2 w-full rounded-lg bg-primary py-1.5 text-center text-xs font-bold text-white hover:brightness-95 transition-all shadow-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onViewRoom(room.id);
               }}
             >
-              Xem toàn bộ
+              Xem chi tiết phòng
             </button>
           )}
         </div>
       </Popup>
     </Marker>
   );
+}
+
+class MapErrorBoundary extends Component<{ children: ReactNode; fallbackHeight?: string }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; fallbackHeight?: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('RoomMap ErrorBoundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{ height: this.props.fallbackHeight || '360px' }}
+          className="w-full rounded-2xl border border-border bg-muted/40 flex flex-col items-center justify-center p-6 text-center gap-3"
+        >
+          <div className="text-primary font-bold text-sm">Bản đồ đang được tải lại</div>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            Vui lòng thử làm mới hoặc mở trực tiếp trên Google Maps.
+          </p>
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false })}
+            className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white hover:brightness-95"
+          >
+            Tải lại bản đồ
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function RoomMap({
@@ -170,38 +239,69 @@ export default function RoomMap({
   onViewRoom,
   variant = 'overview',
 }: RoomMapProps) {
-  const validRooms = rooms.filter((r) => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng));
-  const center: [number, number] = validRooms.length > 0
-    ? [validRooms[0].lat, validRooms[0].lng]
-    : userLat && userLng
-      ? [userLat, userLng]
-      : [10.8231, 106.6297];
+  const validRooms = rooms.filter(
+    (r) =>
+      r.lat != null &&
+      r.lng != null &&
+      !isNaN(r.lat) &&
+      !isNaN(r.lng) &&
+      r.lat >= -90 &&
+      r.lat <= 90 &&
+      r.lng >= -180 &&
+      r.lng <= 180
+  );
+
+  // Hiển thị tối đa 120 phòng gần nhất để bản đồ luôn mượt mà không bị giật lag
+  const displayedRooms = validRooms.slice(0, 120);
+
+  const center: [number, number] =
+    validRooms.length > 0
+      ? [validRooms[0].lat, validRooms[0].lng]
+      : userLat && userLng
+        ? [userLat, userLng]
+        : [10.7769, 106.7009];
 
   const showUserRadius = variant === 'overview' && userLat && userLng;
 
   return (
-    <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden' }}>
-      <MapContainer center={center} zoom={variant === 'detail' ? 16 : 13} style={{ height: '100%', width: '100%' }}>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <FitBounds rooms={validRooms} userLat={userLat} userLng={userLng} variant={variant} />
+    <MapErrorBoundary fallbackHeight={height}>
+      <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
+        <MapContainer
+          center={center}
+          zoom={variant === 'detail' ? 16 : 13}
+          style={{ height: '100%', width: '100%', minHeight: '240px' }}
+          scrollWheelZoom={variant === 'overview'}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            subdomains={['a', 'b', 'c']}
+            maxZoom={19}
+          />
+          <MapResizer />
+          <FitBounds rooms={displayedRooms} userLat={userLat} userLng={userLng} variant={variant} />
 
-        {userLat && userLng && (
-          <Marker position={[userLat, userLng]} icon={userIcon}>
-            <Popup>Vị trí của bạn</Popup>
-          </Marker>
-        )}
+          {userLat && userLng && (
+            <Marker position={[userLat, userLng]} icon={userIcon}>
+              <Popup>
+                <div className="font-bold text-xs p-1 text-center">Vị trí của bạn</div>
+              </Popup>
+            </Marker>
+          )}
 
-        {showUserRadius && (
-          <Circle center={[userLat!, userLng!]} radius={radiusKm * 1000} pathOptions={{ color: '#3b82f6', fillOpacity: 0.08 }} />
-        )}
+          {showUserRadius && (
+            <Circle
+              center={[userLat!, userLng!]}
+              radius={radiusKm * 1000}
+              pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.08 }}
+            />
+          )}
 
-        {validRooms.map((room) => (
-          <RoomMarkerItem key={room.id} room={room} onViewRoom={onViewRoom} />
-        ))}
-      </MapContainer>
-    </div>
+          {displayedRooms.map((room) => (
+            <RoomMarkerItem key={room.id} room={room} onViewRoom={onViewRoom} />
+          ))}
+        </MapContainer>
+      </div>
+    </MapErrorBoundary>
   );
 }
