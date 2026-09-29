@@ -55,7 +55,7 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val externalRooms = ExternalRoomsData.getExternalRooms()
+                val externalRooms = ExternalRoomsData.fetchLiveRooms()
                 val roomResponse = repository.getRooms()
                 val apiRooms = if (roomResponse.isSuccessful) roomResponse.body() ?: emptyList() else emptyList()
                 

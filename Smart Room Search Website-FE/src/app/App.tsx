@@ -1446,8 +1446,14 @@ export default function App() {
 
     loadDemands();
 
+    // Tự động làm mới danh sách phòng mỗi 2 phút để tự cập nhật tin mới và tự động xóa tin đã bị gỡ
+    const refreshTimer = setInterval(() => {
+      loadRooms();
+    }, 120000);
+
     return () => {
       isMounted = false;
+      clearInterval(refreshTimer);
     };
   }, [roomsReloadKey, loadDemands]);
 

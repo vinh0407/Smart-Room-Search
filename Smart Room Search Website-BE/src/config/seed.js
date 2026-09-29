@@ -36,13 +36,11 @@ export const getInitialRooms = () => [
     lat: 10.7731,
     lng: 106.6952,
     status: "available",
-    description: "Phòng studio hiện đại mới xây 2023, full nội thất cao cấp. Nằm ngay trung tâm Quận 1, cách Bến Thành 5 phút đi bộ. An ninh 24/7, camera toàn khu, thang máy tốc độ cao. Chủ nhà thân thiện, hỗ trợ nhiệt tình trong suốt thời gian thuê.",
+    description: "Phòng studio hiện đại mới xây, full nội thất cao cấp. Nằm ngay trung tâm Quận 1, cách Bến Thành 5 phút đi bộ. An ninh 24/7, camera toàn khu, thang máy tốc độ cao. Chủ nhà thân thiện, hỗ trợ nhiệt tình trong suốt thời gian thuê.",
     amenities: ["ac", "private_wc", "wifi", "parking", "balcony", "washing_machine"],
     images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/7elxHUlTeIRBw4gLJMiHak0Ymp06Svc4wT3lTX6zvVk/preset:view/plain/1cc142b7aa713e75ed500872f3e837a9-3004242292488046116.jpg",
+      "https://cdn.chotot.com/z--nHxcWn3ReVp5QtyJ3rnUfdVWAC5VWOg0TByGHR5U/preset:view/plain/8b5c2546f0778bf599ff26c7b94d2ce7-3004242292572851187.jpg"
     ],
     phone: "0901234567",
     zaloLink: "https://zalo.me/0901234567",
@@ -72,9 +70,8 @@ export const getInitialRooms = () => [
     description: "Phòng trọ rộng rãi, thoáng mát, ở ngay trục đường chính Bình Thạnh. Gần chợ Bình Thạnh, siêu thị Lotte Mart, dễ dàng di chuyển về Quận 1. Khu dân cư an ninh, điện nước ổn định.",
     amenities: ["ac", "private_wc", "wifi", "parking"],
     images: [
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=900&h=600&fit=crop&auto=format"
+      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2024/03/29/2_1711684797.jpg",
+      "https://cdn.chotot.com/cD9isdciMqXnBkiobVwiO02xe-H0gywWeudvXEgAtNM/preset:view/plain/4aa02b3ffe20a08aa6296b52b62a20a5-3004242292311003640.jpg"
     ],
     phone: "0912345678",
     zaloLink: "https://zalo.me/0912345678",
@@ -104,9 +101,8 @@ export const getInitialRooms = () => [
     description: "Căn mini apartment đẹp với view nhìn ra sông Sài Gòn tuyệt đẹp. Nội thất hiện đại, tủ lạnh, máy giặt riêng. Tầng 5, thang máy, bảo vệ 24/7. Gần cầu Nguyễn Văn Cừ và cầu Khánh Hội.",
     amenities: ["ac", "private_wc", "wifi", "washing_machine", "kitchen", "balcony"],
     images: [
-      "https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1554995207-c18c203602cb?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/1HtUwj8D9xEwEZUKyQcCHttkgc5DXNP6tw20VHPVvAE/preset:view/plain/f325de0e83ffc02bf56d6ef76eeb9eda-3004242292541917941.jpg",
+      "https://cdn.chotot.com/rdu6C-CoH9K_qeoOOsSO7s2Y-9sB_zD0B0ROgSQ7g0A/preset:view/plain/1da3770062a657f3654f438699463127-3004242292556297441.jpg"
     ],
     phone: "0933456789",
     zaloLink: "https://zalo.me/0933456789",
@@ -136,8 +132,8 @@ export const getInitialRooms = () => [
     description: "Phòng trọ giá sinh viên gần các trường đại học lớn. Phòng sạch sẽ, an ninh, có gác lửng để đồ. Khu có nhiều quán ăn, cà phê, siêu thị tiện lợi.",
     amenities: ["wifi", "parking", "loft"],
     images: [
-      "https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/ZsqIuZjmAdMcNgguJqlHjH_6qJYEE0n-cFRXcq4fVMc/preset:view/plain/ebe9fc081551549bf89db893d4e0b66a-3002333277913150393.jpg",
+      "https://cdn.chotot.com/xUqht7M-0JxyC2N5TP9_g40-QDHGGDjI7mEC1T_2RUQ/preset:view/plain/5f174252eee4ecb1f43e17ec7806c0c9-3003641517058168618.jpg"
     ],
     phone: "0944567890",
     zaloLink: "https://zalo.me/0944567890",
@@ -167,9 +163,8 @@ export const getInitialRooms = () => [
     description: "Phòng đẹp, đầy đủ nội thất, gần sân bay Tân Sơn Nhất 10 phút xe máy. Khu an ninh, yên tĩnh, phù hợp người đi làm văn phòng.",
     amenities: ["ac", "private_wc", "wifi", "parking", "kitchen"],
     images: [
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/xpBqqRkjjUNUV2JBDBCaoFh2IagZZZlrO2ymiiUMVks/preset:view/plain/450ad47e381ddfd8cb50bee96dc5a160-3004242292663983002.jpg",
+      "https://cdn.chotot.com/oSpsW_nHWwbyGS2z1m8qOau1v0rbzt1j2feDC9NmeWA/preset:view/plain/1f2535597c1a6eafcb6e5d23a3638c53-2963833702398428756.jpg"
     ],
     phone: "0955678901",
     zaloLink: "https://zalo.me/0955678901",
@@ -199,9 +194,8 @@ export const getInitialRooms = () => [
     description: "Căn hộ dịch vụ cao cấp ngay trung tâm Quận 3. Phòng rộng 45m², đầy đủ tiện nghi: tủ lạnh, máy giặt, tủ quần áo, sofa, TV, bếp. Có ban công rộng, view đẹp. Bảo vệ 24/7, dọn phòng hàng tuần.",
     amenities: ["ac", "private_wc", "wifi", "washing_machine", "kitchen", "balcony", "parking", "pet_friendly"],
     images: [
-      "https://images.unsplash.com/photo-1554995207-c18c203602cb?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=900&h=600&fit=crop&auto=format"
+      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2026/09/01/img-6803_1788232468.png",
+      "https://cdn.chotot.com/B2oi9h8GvSUJTjYkP3FQY9HrUnCELiVoM94dKWbu79Q/preset:view/plain/0e746385903fd9d4f37a4390af24feb8-2963833701611622290.jpg"
     ],
     phone: "0966789012",
     zaloLink: "https://zalo.me/0966789012",
@@ -231,8 +225,8 @@ export const getInitialRooms = () => [
     description: "Phòng trọ sạch sẽ, thoáng mát khu Chợ Lớn. Gần chợ Kim Biên, bệnh viện Chợ Rẫy. Khu dân cư sầm uất, tiện ích đầy đủ xung quanh.",
     amenities: ["ac", "private_wc", "wifi"],
     images: [
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/mxqJESObNC-NvTDjxnuIteDAJJbnFFep1_uBf88MkqE/preset:view/plain/83a97c803423c09269eed30d2ccade8c-2963833702259527553.jpg",
+      "https://cdn.chotot.com/FCSMeMhJajnndeL35f6HZ-0uSJKUBJRNcGxCPBOCtys/preset:view/plain/4b8f5bdb9627c70df50b09e8110c02c2-2963833702246311151.jpg"
     ],
     phone: "0977890123",
     zaloLink: "https://zalo.me/0977890123",
@@ -259,12 +253,11 @@ export const getInitialRooms = () => [
     lat: 10.7999,
     lng: 106.6788,
     status: "available",
-    description: "Phòng rộng rãi có ban công đẹp nhìn ra đường Phan Xích Long sầm uất. Khu phố cà phê nổi tiếng, nhiều nhà hàng, quán ăn ngon. Gần metro số 2 đang xây dựng.",
+    description: "Phòng rộng rãi có ban công đẹp nhìn ra đường Phan Xích Long sầm uất. Khu phố cà phê nổi tiếng, nhiều nhà hàng, quán ăn ngon. Gần metro số 2.",
     amenities: ["ac", "private_wc", "wifi", "balcony", "parking"],
     images: [
-      "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/_Xm_S8bOYU9niEVZd8Vs-X8XPLjUNX2UJIDIHdcMuFQ/preset:view/plain/e82691622cfb1a0fe3e3c88ca5485787-3000445093650890798.jpg",
+      "https://cdn.chotot.com/CKXfvRQOdXAMPCIGEL8cWrKRCJg95N6syapDSi26mjg/preset:view/plain/29a2eb44c762c41da04f68490bd87ff1-3000445094307867049.jpg"
     ],
     phone: "0988901234",
     zaloLink: "https://zalo.me/0988901234",
@@ -294,7 +287,8 @@ export const getInitialRooms = () => [
     description: "Phòng nhỏ gọn phù hợp sinh viên, người mới đi làm với thu nhập giới hạn. Khu yên tĩnh, an ninh, gần KCN Tân Phú. Chủ nhà tốt bụng, nhiệt tình.",
     amenities: ["wifi", "parking"],
     images: [
-      "https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/dzKewTRu61rsot4VB3BJ5H6j70TGWdYGnWEOCfqvsao/preset:view/plain/ddd387e922543d006a057af8a728bb30-3004135045443229674.jpg",
+      "https://cdn.chotot.com/n1PQDmvQ_FUnVAlOZKurWAA-jw__nV5fkoNKvhGkg98/preset:view/plain/bcffe65394f747ddc9114aa16e0fe7d9-3004242292311003640.jpg"
     ],
     phone: "0999012345",
     zaloLink: "https://zalo.me/0999012345",
@@ -321,13 +315,11 @@ export const getInitialRooms = () => [
     lat: 10.7295,
     lng: 106.7217,
     status: "available",
-    description: "Phòng master view cao thoáng, khu Phú Mỹ Hưng sang trọng. Nội thất nhập khẩu cao cấp, máy lạnh inverter, tủ quần áo âm tường. Chung cư 5 sao, hồ bơi, gym, siêu thị ngay tòa nhà.",
+    description: "Phòng master view cao thoáng, khu Phú Mỹ Hưng sang trọng. Nội thất nhập khẩu cao cấp, máy lạnh inverter, tủ quần áo âm tường. Chung cư cao cấp, hồ bơi, gym, siêu thị ngay tòa nhà.",
     amenities: ["ac", "private_wc", "wifi", "washing_machine", "kitchen", "balcony", "parking", "pet_friendly"],
     images: [
-      "https://images.unsplash.com/photo-1554995207-c18c203602cb?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=900&h=600&fit=crop&auto=format"
+      "https://pt123.cdn.static123.com/images/thumbs/450x300/fit/2026/09/03/img-6803_1788369345.png",
+      "https://cdn.chotot.com/Wah2Q3Ffwx4M1m8v2xRw-TTdX_cxadlr8k92SFipgvM/preset:view/plain/c8b98a1b9f416d58887e7ebb28306823-3000445095060623206.jpg"
     ],
     phone: "0901112233",
     zaloLink: "https://zalo.me/0901112233",
@@ -354,10 +346,10 @@ export const getInitialRooms = () => [
     lat: 10.7717,
     lng: 106.6662,
     status: "maintenance",
-    description: "Phòng đang cải tạo nâng cấp, dự kiến hoàn thành tháng 8/2025. Liên hệ để đặt cọc trước với giá ưu đãi.",
+    description: "Phòng đang cải tạo nâng cấp, dự kiến hoàn thành sớm. Liên hệ để đặt cọc trước với giá ưu đãi.",
     amenities: ["ac", "private_wc", "wifi", "parking"],
     images: [
-      "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/s1_ehXbH-oMizWz2GNrFT2tsC1JxLHEBWoOxbI2Uu-c/preset:view/plain/4fb3e27e1ae6487916549aeac189f3e1-3000445094752304522.jpg"
     ],
     phone: "0902223344",
     zaloLink: "https://zalo.me/0902223344",
@@ -387,8 +379,8 @@ export const getInitialRooms = () => [
     description: "Phòng có gác lửng tiện lợi để đồ đạc hoặc ngủ riêng. Khu yên tĩnh, không khí trong lành, phù hợp gia đình nhỏ. Gần KCN Vĩnh Lộc.",
     amenities: ["ac", "wifi", "parking", "loft", "kitchen"],
     images: [
-      "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=900&h=600&fit=crop&auto=format",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=900&h=600&fit=crop&auto=format"
+      "https://cdn.chotot.com/xacurF77LgMFPDjAkt5M2Sau1yV5yRJHXdaXEQVbWV0/preset:view/plain/d72399112c3285ab913aa23b662241b3-3003486997117519511.jpg",
+      "https://cdn.chotot.com/Udirs6yjH7BoTmonRA1i9Dn9sJ24Ier6kj97GvodHHA/preset:view/plain/88a44db2711065677814da68782a9703-3003486997371860505.jpg"
     ],
     phone: "0903334455",
     zaloLink: "https://zalo.me/0903334455",
