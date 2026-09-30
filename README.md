@@ -1,195 +1,196 @@
-# Smart Room Search — Trọ Xịn
+# Smart Room Search
 
-> **Nền tảng tìm kiếm và quản lý phòng trọ thông minh toàn quốc** — kết nối trực tiếp người thuê và chủ trọ tại **TP.HCM, Hà Nội, Đà Nẵng, Bình Dương, Cần Thơ, Hải Phòng,...** Tích hợp nguồn tin tổng hợp đa kênh từ **Chợ Tốt Nhà, Batdongsan & Phongtro123**, hỗ trợ bộ lọc 3 cấp liên hoàn (**Tỉnh/Thành phố $\rightarrow$ Quận/Huyện $\rightarrow$ Phường/Xã**), bản đồ tương tác định vị khoảng cách, tối ưu hiệu năng mượt mà và bảo mật cao.
+A full-stack rental housing discovery and property management platform supporting major metropolitan areas nationwide across Vietnam (Ho Chi Minh City, Hanoi, Da Nang, Binh Duong, Can Tho, Hai Phong, and more).
 
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-2-7F52FF?logo=kotlin&logoColor=white)
-![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-3DDC84?logo=android&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
-![Express](https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white)
-![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)
-![TiDB Cloud](https://img.shields.io/badge/TiDB%20Cloud-00AFB9?logo=tidb&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-Auth-000000?logo=jsonwebtokens&logoColor=white)
+The platform aggregates listings from primary landlords and prominent rental channels (Cho Tot Nha, Batdongsan, Phongtro123), featuring cascading 3-tier administrative filtering (Province/City -> District -> Ward), interactive distance-aware map exploration, streamlined tenant demand submission, and an automated administration dashboard.
+
+The ecosystem consists of:
+- Tenant Web Application (React 18 + Vite + Tailwind CSS)
+- Native Android Mobile App (Kotlin + Jetpack Compose)
+- Dedicated Admin Web Portal (React 18 + Vite)
+- Serverless Backend API (Cloudflare Workers + Node.js Express)
+- Distributed Database (TiDB Cloud MySQL via Data Service)
 
 ---
 
-## 🌐 Trải nghiệm trực tiếp
+## Live Deployments
 
-| Thành phần | URL | Mô tả |
+| Component | URL | Description |
 |---|---|---|
-| 🏠 **Website người thuê** | [smart-room-search.vercel.app](https://smart-room-search.vercel.app) | Tìm phòng, bản đồ, lọc 3 cấp, đăng nhu cầu, liên hệ chủ trọ |
-| 🛡️ **Admin Web** (quản trị) | [smart-room-admin.vercel.app](https://smart-room-admin.vercel.app) | Quản lý phòng, khách thuê, nhu cầu, AI Data Entry, thống kê |
-| ⚡ **Backend API** | [smart-room-api.smart-room-backend.workers.dev/api](https://smart-room-api.smart-room-backend.workers.dev/api) | Serverless REST API chạy trên Cloudflare Workers toàn cầu |
-| 💓 **Health Check** | [smart-room-api.smart-room-backend.workers.dev/health](https://smart-room-api.smart-room-backend.workers.dev/health) | Kiểm tra trạng thái hoạt động backend & database |
+| Tenant Website | https://smart-room-search.vercel.app | Room search, cascading filter, interactive map, room demands |
+| Admin Web Portal | https://smart-room-admin.vercel.app | Property, tenant, demand management, statistics dashboard |
+| Backend REST API | https://smart-room-api.smart-room-backend.workers.dev/api | Cloudflare Workers edge deployment |
+| API Health Check | https://smart-room-api.smart-room-backend.workers.dev/health | System status and database connectivity check |
 
-> 🔑 **Tài khoản Admin mặc định:** `admin` / `123`
+Default Admin Credentials:
+- Username: `admin`
+- Password: `123`
 
 ---
 
-## 📱 Tải Ứng Dụng Android (APK)
+## Android Mobile Application (APK)
 
-Tải trực tiếp file cài đặt APK mới nhất cho điện thoại Android:
+Download the production-ready Android APK package directly from GitHub:
 
-| Phiên bản | Tải file APK | Dung lượng | Trạng thái |
+| Release Version | Direct Download Link | Package Size | Status |
 |---|---|---|---|
-| 🚀 **Smart Room Search v2.0 (Khuyên dùng)** | [📥 **Tải SmartRoomSearch-v2.0.apk**](https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v2.0.apk) | ~28.8 MB | **Mới nhất · Đã kiểm thử** |
-| 📦 Smart Room Search v1.0 | [📥 Tải SmartRoomSearch-v1.0.apk](https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v1.0.apk) | ~28.0 MB | Bản tiền nhiệm |
+| Smart Room Search v2.0 | [Download SmartRoomSearch-v2.0.apk](https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v2.0.apk) | ~28.8 MB | Latest Release |
+| Smart Room Search v1.0 | [Download SmartRoomSearch-v1.0.apk](https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v1.0.apk) | ~28.0 MB | Legacy Release |
 
-### 🌟 Điểm mới nổi bật trên bản v2.0:
-1. **Phạm vi Toàn quốc**: Mở rộng dữ liệu và tìm kiếm tại mọi tỉnh thành trọng điểm (TP.HCM, Hà Nội, Đà Nẵng, Cần Thơ, Hải Phòng, Bình Dương, Đồng Nai,...).
-2. **Bộ lọc 3 cấp liên hoàn**: Lựa chọn chính xác theo **Tỉnh/Thành phố $\rightarrow$ Quận/Huyện $\rightarrow$ Phường/Xã** trên cả thanh tìm kiếm phòng và biểu mẫu đăng nhu cầu tìm phòng.
-3. **Phân loại nguồn phòng đa kênh**: Phân loại rõ ràng phòng chính chủ hệ thống và nguồn tổng hợp từ **Chợ Tốt Nhà, Batdongsan.com.vn & Phongtro123**, tự động cập nhật đúng theo tỉnh thành bạn đang xem.
-4. **Khắc phục triệt để lỗi Bản đồ Mobile**: Nâng cấp WebView Leaflet sang cơ chế **Multi-CDN** (`cdnjs.cloudflare.com` + `cdn.jsdelivr.net` + `unpkg.com`), polling kiểm tra an toàn thư viện, tự động resize hiển thị mượt mà, loại bỏ hoàn toàn lỗi màn hình trắng hay chặn mạng.
-5. **Tối ưu tốc độ & không giật lag**: Áp dụng phân trang cuốn chiếu mượt mà (Progressive Pagination), bộ nhớ tạm Card Memoization và Map Canvas siêu nhẹ.
+### Key Improvements in Version 2.0:
+1. Nationwide Scope: Expanded property listings across major cities and provinces nationwide.
+2. Cascading 3-Tier Filter: Granular location targeting across Province/City -> District -> Ward for room search and tenant demand posting.
+3. Multi-Channel Aggregation: Categorized room feeds from both verified direct owners and external platforms (Cho Tot Nha, Batdongsan, Phongtro123) scoped to the selected city.
+4. Resolved Mobile Map Rendering: Leaflet OpenStreetMap in Android WebView upgraded with multi-CDN fallbacks (cdnjs + jsDelivr) and readiness polling to eliminate blank screen errors.
+5. High Performance: Progressive pagination, memoized card rendering, and canvas-rendered maps for smooth scrolling and responsive navigation.
 
-> 💡 **Hướng dẫn cài đặt APK:**  
-> Tải file APK về điện thoại $\rightarrow$ Nhấp mở file $\rightarrow$ Chọn **"Cho phép cài đặt từ nguồn không xác định"** nếu được hỏi $\rightarrow$ Chọn **Cài đặt**. (Ứng dụng debug-signed an toàn, phục vụ mục đích demo và thử nghiệm).
-
----
-
-## ✨ Tính năng chính
-
-### 1. Website Người Thuê (React 18 + Vite + Tailwind CSS)
-- **Tìm kiếm đa tầng**: Lọc theo từ khóa, khoảng giá slider, diện tích, tiện nghi (máy lạnh, wifi, gác lửng, ban công, bếp, tự do giờ giấc,...), và phân loại khu vực.
-- **Lọc 3 cấp chuẩn xác**: Chọn Tỉnh/Thành $\rightarrow$ Quận/Huyện $\rightarrow$ Phường/Xã với dữ liệu địa giới hành chính cập nhật.
-- **Bản đồ tương tác Leaflet (OpenStreetMap)**: Hiển thị vị trí trực quan, bán kính tìm kiếm và khoảng cách thực tế (km) từ tọa độ GPS của người dùng.
-- **Trang chi tiết phòng đầy đủ**: Gallery ảnh đa phương tiện, bảng kê chi phí hàng tháng (điện, nước, internet, phí dịch vụ), bản đồ vệ tinh mini và gợi ý phòng tương tự.
-- **Đăng nhu cầu thông minh**: Người thuê có thể điền form 3 cấp hoặc nhập văn bản tự nhiên; hệ thống tự động phân tích và lưu trữ để chủ trọ liên hệ.
-- **Tương tác trực tiếp**: Gọi điện thoại hoặc chat Zalo 1 chạm với chủ phòng (hệ thống tự động ghi nhận lượt liên hệ).
-- **Yêu thích & Chế độ tối**: Lưu danh sách phòng yêu thích offline (LocalStorage), hỗ trợ Dark Mode bảo vệ mắt.
-
-### 2. App Android Native (Kotlin + Jetpack Compose)
-- **Kiến trúc hiện đại**: Viết 100% bằng Kotlin + Jetpack Compose (Material 3), ViewModel, Coroutines và StateFlow.
-- **Bản đồ định vị mượt mà**: Tích hợp OpenStreetMap WebView với cơ chế Multi-CDN chống lỗi mạng, hiển thị marker tương tác và dẫn đường.
-- **Bộ lọc & Nhu cầu đa cấp**: Giao diện FilterChip trực quan cho Tỉnh/Thành, Quận/Huyện, Phường/Xã.
-- **Lưu trữ Offline**: Tích hợp cơ sở dữ liệu Room DB lưu các phòng yêu thích ngay cả khi không có kết nối Internet.
-- **Mục Quản trị tích hợp**: Chủ trọ có thể đăng nhập admin ngay trên app để xem Dashboard thống kê, thêm/sửa/xóa phòng và quản lý khách thuê.
-
-### 3. Admin Web & App Quản Trị
-- **Dashboard số liệu thực tế**: Thống kê tổng số phòng, phòng đang trống, phòng đã cho thuê, đang bảo trì, tổng khách thuê và nhu cầu tìm phòng.
-- **Nhập liệu thông minh bằng AI (AI Data Entry)**: Dán đoạn văn bản mô tả tiếng Việt bất kỳ (từ Facebook, Zalo, tin nhắn), hệ thống tự động trích xuất các trường thông tin (giá, diện tích, tiền cọc, địa chỉ, tiện nghi, thông tin liên hệ) qua endpoint `POST /api/rooms/parse`.
-- **Quản lý toàn diện**: Quản lý phòng, cập nhật trạng thái nhanh, theo dõi hợp đồng và lịch sử khách thuê, duyệt nhu cầu tìm phòng.
-- **AI sinh mô tả & Geocoding**: Tự động tạo bài viết mô tả phòng hấp dẫn và xác định tọa độ kinh độ/vĩ độ từ địa chỉ.
-
-### 4. Backend Serverless & Database
-- **Cloudflare Workers**: Chạy trên hạ tầng Edge toàn cầu của Cloudflare, độ trễ cực thấp, không cần duy trì máy chủ truyền thống.
-- **TiDB Cloud (Distributed MySQL)**: Cơ sở dữ liệu phân tán chuẩn MySQL kết nối qua TiDB Data Service (HTTP Digest Auth bảo mật).
-- **Bảo mật**: Mã hóa mật khẩu `bcryptjs`, xác thực phiên `JWT`, cơ chế chống brute-force đăng nhập.
+### Android Installation Instructions:
+1. Download the APK file onto your Android device.
+2. Open the downloaded file.
+3. If prompted, enable "Install unknown apps" or "Allow from this source" in system settings.
+4. Complete the installation. (The APK is debug-signed for evaluation and testing).
 
 ---
 
-## 🏗️ Kiến trúc hệ thống
+## Core Features
+
+### 1. Tenant Web Application
+- Multi-criteria Search: Keyword search, dual-range price slider, area boundaries, amenities (air conditioning, Wi-Fi, mezzanine, balcony, private kitchen, pet-friendly, free hours), and rental availability status.
+- 3-Tier Administrative Navigation: Synchronized cascading dropdowns for Province/City, District, and Ward.
+- Interactive Map View: Leaflet OpenStreetMap with custom SVG markers, dynamic radius filtering, and real-time distance calculations from user coordinates.
+- Property Details Page: Photo gallery, monthly utility breakdown (electricity, water, internet, service fees), mini map overview, and contextual recommendations.
+- Room Demands Hub: Submit rental requirements using structured 3-tier forms or natural language text parsing.
+- Direct Contact Integration: One-click phone calling and Zalo messaging with landlords, with automatic contact tracking.
+- Local Favorites and Dark Mode: Offline favorites stored in LocalStorage and full dark/light theme switching.
+
+### 2. Native Android Application
+- Architecture: 100% Kotlin with Jetpack Compose (Material Design 3), MVVM pattern, Coroutines, and StateFlow.
+- Multi-CDN Map Engine: Leaflet OpenStreetMap in WebView backed by Cloudflare cdnjs and jsDelivr fallbacks, SSL handling, and automatic viewport invalidation.
+- Hierarchical Filter Chips: Horizontal scrolling chips for City, District, and Ward filtering.
+- Offline Data Persistence: Local Room Database for saved offline favorites.
+- Integrated Landlord Management: In-app administrative portal with dashboard metrics, property status toggling, and tenant records.
+
+### 3. Admin Web Portal
+- Operational Dashboard: Real-time metrics for total rooms, vacancies, rented units, maintenance status, active tenants, and pending demands.
+- Intelligent AI Data Entry: Paste unstructured rental descriptions from social media or chat logs; the system automatically extracts fields (price, area, address, deposit, utilities, contact info) via `POST /api/rooms/parse`.
+- Property Lifecycle Management: Create, update, delete, and switch status (available, rented, maintenance).
+- Tenant History Tracking: Active tenant directory and historical rental lease records.
+- Geocoding and AI Descriptions: Automated geocoding from street addresses into latitude/longitude coordinates and AI-assisted listing copywriting.
+
+### 4. Serverless Edge Backend and Database
+- Cloudflare Workers: Global edge deployment with minimal latency and high availability.
+- TiDB Cloud Database: Distributed MySQL engine connected via TiDB Data Service with HTTP Digest Authentication.
+- Security: Password hashing with bcryptjs, JWT bearer token authentication, login brute-force rate limiting, and CORS restrictions.
+
+---
+
+## System Architecture
 
 ```
-┌─────────────────────────────────┐   ┌─────────────────────────────────┐   ┌─────────────────────────────────┐
-│       App Android Native        │   │         Website FE              │   │           Admin Web             │
-│   (Kotlin + Jetpack Compose)    │   │      (React 18 + Vite)          │   │      (React 18 + Vite)          │
-└────────────────┬────────────────┘   └────────────────┬────────────────┘   └────────────────┬────────────────┘
-                 │                                     │                                     │
-                 └─────────────────────────────────────┼─────────────────────────────────────┘
-                                                       │ HTTPS REST API
-                                                       ▼
-                                            ┌─────────────────────┐
-                                            │ Cloudflare Workers  │
-                                            │ (Production API)    │
-                                            │ Express (Local Dev) │
-                                            └──────────┬──────────┘
-                                                       │ HTTP + Digest Auth
-                                                       ▼
-                                            ┌─────────────────────┐
-                                            │  TiDB Data Service  │
-                                            │    (TiDB Cloud)     │
-                                            └──────────┬──────────┘
-                                                       │
-                                                       ▼
-                                            ┌─────────────────────┐
-                                            │ MySQL smart_room_db │
-                                            └─────────────────────┘
++-----------------------------+   +-----------------------------+   +-----------------------------+
+|    Native Android App       |   |      Tenant Web App         |   |      Admin Web Portal       |
+|  (Kotlin + Jetpack Compose) |   |    (React 18 + Vite)        |   |    (React 18 + Vite)        |
++--------------+--------------+   +--------------+--------------+   +--------------+--------------+
+               |                                 |                                 |
+               +---------------------------------+---------------------------------+
+                                                 | HTTPS REST API
+                                                 v
+                                  +-----------------------------+
+                                  |     Cloudflare Workers      |
+                                  |    (Production REST API)    |
+                                  |     Express (Local Dev)     |
+                                  +--------------+--------------+
+                                                 | HTTP Digest Auth
+                                                 v
+                                  +-----------------------------+
+                                  |      TiDB Data Service      |
+                                  |        (TiDB Cloud)         |
+                                  +--------------+--------------+
+                                                 |
+                                                 v
+                                  +-----------------------------+
+                                  |     MySQL smart_room_db     |
+                                  +-----------------------------+
 ```
 
 ---
 
-## 📁 Cấu trúc thư mục
+## Repository Directory Structure
 
 ```
 Smart-Room-Search/
-├── APK/                                     # Bộ cài đặt Android APK hoàn chỉnh
-│   ├── SmartRoomSearch-v2.0.apk             # Bản phát hành v2.0 (mới nhất)
-│   └── SmartRoomSearch-v1.0.apk             # Bản phát hành v1.0
-├── Smart Room Search Website-FE/            # Website người thuê & Mã nguồn Android
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── App.tsx                      # Toàn bộ giao diện chính của Website
-│   │   │   └── App.test.ts                  # Bộ kiểm thử giao diện & logic
-│   │   └── components/
-│   │       ├── RoomMap.tsx                  # Component bản đồ Leaflet OpenStreetMap
-│   │       └── ...
-│   ├── android/                             # Dự án App Android Native (Kotlin Compose)
-│   │   └── app/src/main/java/com/smartroomsearch/app/
-│   │       ├── ui/                          # Màn hình Compose (Home, Demands, Map, Detail, Admin)
-│   │       ├── api/                         # RetrofitClient & API Service
-│   │       ├── model/                       # Data models & ExternalRoomsData
-│   │       └── repository/                  # Room Database & Repository
-│   └── android_apk/                         # Thư mục chứa file APK cho web download
-├── Smart Room Search Website-BE/            # Backend API (Express & Cloudflare Worker)
-│   ├── src/
-│   │   ├── server.js                        # Máy chủ Node.js Express (Local development)
-│   │   ├── worker.js                        # Mã nguồn Cloudflare Worker (Production)
-│   │   ├── controllers/                     # Xử lý logic API (room, tenant, demand, auth, ai, geocode)
-│   │   ├── utils/roomParser.js              # Bộ phân tích văn bản tiếng Việt thông minh
-│   │   └── config/                          # Cấu hình Database & TiDB Data Service
-│   ├── sql/schema.sql                       # Cấu trúc bảng MySQL/TiDB
-│   └── wrangler.jsonc                       # Cấu hình triển khai Cloudflare Workers
-├── Admin/                                   # Admin Web quản trị độc lập (React + Vite)
-└── README.md                                # Tài liệu hướng dẫn dự án
+|-- APK/                                     # Android APK installation packages
+|   |-- SmartRoomSearch-v2.0.apk             # Version 2.0 release package
+|   `-- SmartRoomSearch-v1.0.apk             # Version 1.0 release package
+|-- Smart Room Search Website-FE/            # Tenant Web frontend and Android source code
+|   |-- src/
+|   |   |-- app/
+|   |   |   |-- App.tsx                      # Primary web application interface
+|   |   |   `-- App.test.ts                  # Test suites for web logic and UI
+|   |   `-- components/
+|   |       `-- RoomMap.tsx                  # Leaflet OpenStreetMap component
+|   |-- android/                             # Native Android project (Kotlin Compose)
+|   |   `-- app/src/main/java/com/smartroomsearch/app/
+|   |       |-- ui/                          # Compose screens (Home, Demands, Map, Detail, Admin)
+|   |       |-- api/                         # RetrofitClient and API services
+|   |       |-- model/                       # Data models and source data definitions
+|   |       `-- repository/                  # Room database and offline repositories
+|   `-- android_apk/                         # Mirrored APK directory for web distribution
+|-- Smart Room Search Website-BE/            # Backend API service (Express and Cloudflare Worker)
+|   |-- src/
+|   |   |-- server.js                        # Express server entry point (local development)
+|   |   |-- worker.js                        # Cloudflare Worker entry point (production)
+|   |   |-- controllers/                     # API controllers (rooms, tenants, demands, auth, AI)
+|   |   |-- utils/                           # AI text parser utilities
+|   |   `-- config/                          # Database connection and TiDB Data Service config
+|   |-- sql/schema.sql                       # Database schema definition
+|   `-- wrangler.jsonc                       # Cloudflare Workers configuration
+|-- Admin/                                   # Standalone Admin Web Portal (React + Vite)
+`-- README.md                                # Project documentation
 ```
 
 ---
 
-## 🛠️ Hướng dẫn cài đặt & Chạy thử nghiệm
+## Installation and Local Setup
 
-### Yêu cầu môi trường:
-- **Node.js**: $\ge$ 20 (khuyến nghị Node.js 22 LTS)
-- **Java/JDK**: JDK 21 hoặc JBR (kèm theo Android Studio)
-- **Android Studio**: Hỗ trợ Compose (Ladybug / Koala hoặc mới hơn)
+### System Prerequisites
+- Node.js: version 20 or higher (version 22 LTS recommended)
+- Java Development Kit (JDK): JDK 21 or Android Studio bundled JBR
+- Android Studio: Ladybug, Koala, or higher
 
 ---
 
-### 1. Khởi chạy Website Người Thuê (Frontend)
+### 1. Tenant Web Application
 
 ```bash
 cd "Smart Room Search Website-FE"
 npm install
 npm run dev
 ```
-- Mở trình duyệt tại: `http://localhost:5173`
-- Chạy kiểm thử tự động:
+- Local URL: http://localhost:5173
+- Run automated tests:
   ```bash
   npm test
   ```
-- Đóng gói bản production:
+- Production build:
   ```bash
   npm run build
   ```
 
 ---
 
-### 2. Khởi chạy Backend (Local Express hoặc Cloudflare Worker)
+### 2. Backend API Service
 
 ```bash
 cd "Smart Room Search Website-BE"
 npm install
-copy .env.example .env     # Điền thông tin kết nối database của bạn
-npm run dev                # Chạy server tại http://localhost:4000
+cp .env.example .env
+npm run dev
 ```
+- Local Server URL: http://localhost:4000
+- Health verification: http://localhost:4000/health
 
-Kiểm tra healthcheck: `http://localhost:4000/health` $\rightarrow$ `{"status":"ok"}`
-
-**Triển khai lên Cloudflare Workers:**
+Deploying to Cloudflare Workers:
 ```bash
 npx wrangler login
 npx wrangler secret put JWT_SECRET
@@ -200,50 +201,50 @@ npx wrangler deploy
 
 ---
 
-### 3. Biên dịch Ứng dụng Android (Kotlin Jetpack Compose)
+### 3. Android Mobile Application
 
-Mở dự án tại thư mục `Smart Room Search Website-FE/android` bằng **Android Studio**, hoặc dùng lệnh Gradle:
+Open the project directory `Smart Room Search Website-FE/android` in Android Studio, or compile using the Gradle wrapper:
 
 ```powershell
 cd "Smart Room Search Website-FE/android"
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr" # Thay đường dẫn JDK 21 của bạn
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 .\gradlew.bat assembleDebug
 ```
-File APK sau khi build sẽ nằm tại:  
+The compiled APK binary is located at:  
 `Smart Room Search Website-FE/android/app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
-## 📡 Danh sách API chính
+## Primary REST API Endpoints
 
-| Method | Endpoint | Xác thực | Mô tả |
+| HTTP Method | Endpoint | Authorization | Description |
 |---|---|---|---|
-| `POST` | `/api/login` | Công khai | Đăng nhập tài khoản quản trị (trả về JWT token) |
-| `GET` | `/api/rooms` | Công khai | Lấy danh sách phòng (kèm bộ lọc: city, district, price, area, status, search) |
-| `GET` | `/api/rooms/:id` | Công khai | Lấy thông tin chi tiết một phòng trọ |
-| `POST` | `/api/rooms/:id/view` | Công khai | Tăng lượt xem phòng |
-| `POST` | `/api/rooms/:id/contact`| Công khai | Tăng lượt liên hệ Zalo/Phone của phòng |
-| `POST` | `/api/rooms/parse` | Quản trị | **AI Data Entry**: Parse văn bản tự do thành phòng trọ |
-| `POST` | `/api/rooms` | Quản trị | Thêm phòng mới |
-| `PUT` | `/api/rooms/:id` | Quản trị | Sửa thông tin phòng |
-| `DELETE`| `/api/rooms/:id` | Quản trị | Xóa phòng |
-| `PUT` | `/api/rooms/:id/status`| Quản trị | Đổi trạng thái nhanh (`available`, `rented`, `maintenance`) |
-| `GET` | `/api/rooms/stats` | Quản trị | Thống kê số liệu Dashboard |
-| `GET` | `/api/demands` | Công khai | Lấy danh sách các nhu cầu thuê phòng |
-| `POST` | `/api/demands` | Công khai | Đăng ký nhu cầu tìm phòng mới |
-| `GET` | `/api/tenants` | Quản trị | Danh sách khách thuê hiện tại |
-| `GET` | `/api/tenant-history` | Quản trị | Lịch sử khách đã từng thuê phòng |
-| `POST` | `/api/ai/room-description` | Quản trị | AI sinh nội dung bài đăng giới thiệu phòng trọ |
-| `GET` | `/api/geocode` | Quản trị | Geocoding chuyển đổi địa chỉ thành tọa độ GPS |
-| `GET` | `/health` | Công khai | Health check trạng thái server |
+| POST | /api/login | Public | Admin login; returns JWT authentication token |
+| GET | /api/rooms | Public | Retrieve room listings with filters (city, district, price, area, status, search) |
+| GET | /api/rooms/:id | Public | Retrieve detailed information for a specific property |
+| POST | /api/rooms/:id/view | Public | Increment room view counter |
+| POST | /api/rooms/:id/contact | Public | Increment room contact counter (Zalo / Phone) |
+| POST | /api/rooms/parse | Admin | AI Data Entry: Parse natural language text into room attributes |
+| POST | /api/rooms | Admin | Create a new room listing |
+| PUT | /api/rooms/:id | Admin | Update existing room listing |
+| DELETE | /api/rooms/:id | Admin | Remove room listing |
+| PUT | /api/rooms/:id/status | Admin | Update room status (available, rented, maintenance) |
+| GET | /api/rooms/stats | Admin | Dashboard summary metrics |
+| GET | /api/demands | Public | Retrieve active tenant rental demands |
+| POST | /api/demands | Public | Submit a new tenant rental demand |
+| GET | /api/tenants | Admin | Retrieve current tenant directory |
+| GET | /api/tenant-history | Admin | Retrieve historical lease records |
+| POST | /api/ai/room-description | Admin | AI-generated room marketing descriptions |
+| GET | /api/geocode | Admin | Convert address text to geographic coordinates |
+| GET | /health | Public | Backend health check and database status |
 
 ---
 
-## 🔒 Bản quyền & Liên hệ
+## License and Maintainer
 
-Dự án được xây dựng và duy trì bởi:
-- **Tác giả**: Ưng Đỗ Thế Vinh
-- **GitHub**: [@vinh0407](https://github.com/vinh0407)
-- **Repository**: [vinh0407/Smart-Room-Search](https://github.com/vinh0407/Smart-Room-Search)
-- **Zalo / Hotline**: 0337244067
-- **Bản quyền**: © 2025 - 2026 Smart Room Search — Trọ Xịn. Mọi quyền được bảo lưu.
+Project developed and maintained by:
+- Author: Ung Do The Vinh
+- GitHub: https://github.com/vinh0407
+- Repository: https://github.com/vinh0407/Smart-Room-Search
+- Contact: 0337244067
+- Copyright: (c) 2025 - 2026 Smart Room Search. All rights reserved.
