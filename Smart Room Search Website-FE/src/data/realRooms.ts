@@ -50,9 +50,22 @@ export const REAL_ROOMS: RealRoomItem[] = (rawData as any[]).map((r) => {
   const rawAmenities: string[] = Array.isArray(r.amenities) ? r.amenities : [];
   const mappedAmenities = Array.from(new Set(rawAmenities.map(mapAmenity)));
 
+  const fullAddr = r.address || '';
+  const dist = r.district || '';
+  let city = r.city;
+  if (!city || city === 'TP.HCM') {
+    const addrLower = (fullAddr + ' ' + dist).toLowerCase();
+    if (addrLower.includes('hà nội') || addrLower.includes('ha noi')) city = 'Hà Nội';
+    else if (addrLower.includes('đà nẵng') || addrLower.includes('da nang')) city = 'Đà Nẵng';
+    else if (addrLower.includes('bình dương')) city = 'Bình Dương';
+    else if (addrLower.includes('cần thơ')) city = 'Cần Thơ';
+    else if (addrLower.includes('hải phòng')) city = 'Hải Phòng';
+    else city = city || 'TP. Hồ Chí Minh';
+  }
+
   return {
     id: r.id,
-    name: r.title || 'Phòng trọ TP.HCM',
+    name: r.title || r.name || 'Phòng trọ cho thuê',
     price: Number(r.price || 0),
     electricity: r.electricity ? Number(r.electricity) : 3800,
     water: r.water ? Number(r.water) : 100000,
@@ -60,9 +73,9 @@ export const REAL_ROOMS: RealRoomItem[] = (rawData as any[]).map((r) => {
     serviceFee: r.serviceFee ? Number(r.serviceFee) : 150000,
     area: r.area ? Number(r.area) : 25,
     maxPeople: r.maxPeople ? Number(r.maxPeople) : 2,
-    address: r.address || '',
-    district: r.district || 'Quận 1',
-    city: r.city || 'TP.HCM',
+    address: fullAddr,
+    district: dist,
+    city: city,
     lat: r.lat ? Number(r.lat) : 10.7769,
     lng: r.lng ? Number(r.lng) : 106.7009,
     status: (r.status as any) || 'available',
@@ -81,6 +94,6 @@ export const REAL_ROOMS: RealRoomItem[] = (rawData as any[]).map((r) => {
     rating: r.rating ? Number(r.rating) : 4.8,
     source: r.source || 'nhatot',
     externalUrl: r.externalUrl || '',
-    createdAt: r.created_at || new Date().toISOString(),
+    createdAt: r.createdAt || r.created_at || new Date().toISOString(),
   };
 });

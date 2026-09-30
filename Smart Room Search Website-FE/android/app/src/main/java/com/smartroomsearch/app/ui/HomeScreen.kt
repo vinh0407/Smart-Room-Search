@@ -87,7 +87,24 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 )
                 AppSearchBar(
                     query = searchQuery,
-                    onQueryChange = { searchQuery = it },
+                    onQueryChange = { q ->
+                        searchQuery = q
+                        val qLower = q.lowercase().trim()
+                        val detectedCity = when {
+                            qLower.contains("hà nội") || qLower.contains("ha noi") || qLower.contains("cầu giấy") || qLower.contains("đống đa") || qLower.contains("thanh xuân") || qLower.contains("ba đình") || qLower.contains("hà đông") -> "Hà Nội"
+                            qLower.contains("đà nẵng") || qLower.contains("da nang") || qLower.contains("hải châu") || qLower.contains("sơn trà") -> "Đà Nẵng"
+                            qLower.contains("bình dương") || qLower.contains("dĩ an") || qLower.contains("thuận an") -> "Bình Dương"
+                            qLower.contains("cần thơ") || qLower.contains("ninh kiều") -> "Cần Thơ"
+                            qLower.contains("hải phòng") || qLower.contains("lê chân") -> "Hải Phòng"
+                            qLower.contains("hồ chí minh") || qLower.contains("hcm") || qLower.contains("sài gòn") -> "TP. Hồ Chí Minh"
+                            else -> null
+                        }
+                        if (detectedCity != null && detectedCity != selectedCity) {
+                            viewModel.selectCity(detectedCity)
+                            selectedDistrict = "Tất cả"
+                            selectedWard = "Tất cả phường"
+                        }
+                    },
                     placeholder = "Tìm quận, địa chỉ, tên đường...",
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )

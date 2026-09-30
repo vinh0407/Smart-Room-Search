@@ -861,6 +861,32 @@ function FilterPanel({
         </div>
       )}
 
+      {/* Tỉnh / Thành phố */}
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <MapPin size={13} className="text-primary" /> Tỉnh / Thành phố
+        </p>
+        <select
+          value={filters.city || "TP. Hồ Chí Minh"}
+          onChange={(e) => {
+            const newCity = e.target.value;
+            onChange({
+              city: newCity,
+              district: "Tất cả",
+              ward: "Tất cả",
+              districtCategory: "Tất cả",
+            });
+          }}
+          className="w-full rounded-xl border border-primary/40 bg-input-background px-3 py-2 text-base text-foreground font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 sm:text-sm"
+        >
+          {CITIES.map((c) => (
+            <option key={c.name} value={c.name}>
+              {c.name} ({c.shortName})
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Nguồn đăng & Xuất xứ phòng */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -2429,25 +2455,138 @@ export default function App() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Load rooms once on mount (no auto-refresh). Retry by bumping roomsReloadKey.
+  const REGION_IDS: Record<string, number> = {
+    "TP. Hồ Chí Minh": 13000,
+    "Hà Nội": 12000,
+    "Đà Nẵng": 3017,
+    "Bình Dương": 2011,
+    "Cần Thơ": 5027,
+    "Hải Phòng": 4019,
+  };
+
+  const fetchLiveChoTotRooms = async (cityName: string): Promise<Room[]> => {
+    const regId = REGION_IDS[cityName] || 13000;
+    
+    // 1. Thử gọi API Serverless /api/live-rooms
+    try {
+      const res = await fetch(`/api/live-rooms?region=${regId}&city=${encodeURIComponent(cityName)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.rooms) && json.rooms.length > 0) {
+          return json.rooms;
+        }
+      }
+    } catch {}
+
+    // 2. Thử gọi qua AllOrigins CORS proxy tới gateway Chợ Tốt trực tiếp
+    try {
+      const targetUrl = `https://gateway.chotot.com/v1/public/ad-listing?region_v2=${regId}&cg=1050&limit=50&o=0`;
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        const json = await res.json();
+        const ads = json.ads || [];
+        if (Array.isArray(ads) && ads.length > 0) {
+          return ads
+            .filter((ad: any) => ad.list_id && ad.price > 0 && ad.images && ad.images.length > 0)
+            .map((ad: any): Room => {
+              const district = ad.area_name || "";
+              const street = ad.street_name ? `${ad.street_name}, ` : "";
+              const ward = ad.ward_name ? `${ad.ward_name}, ` : "";
+              const fullAddress = `${street}${ward}${district || cityName}, ${cityName}`;
+              const text = (ad.subject + " " + (ad.body || "")).toLowerCase();
+              const amenities = ["wifi"];
+              if (text.includes("máy lạnh") || text.includes("điều hòa")) amenities.push("ac");
+              if (text.includes("gác") || text.includes("duplex")) amenities.push("loft");
+              if (text.includes("ban công") || text.includes("cửa sổ")) amenities.push("balcony");
+              if (text.includes("bếp")) amenities.push("kitchen");
+              if (text.includes("xe")) amenities.push("parking");
+              if (text.includes("thú")) amenities.push("pet_friendly");
+
+              return {
+                id: Number(ad.list_id),
+                name: ad.subject || "Phòng trọ cho thuê",
+                price: Number(ad.price),
+                area: Number(ad.size) || 25,
+                address: fullAddress,
+                district: district,
+                city: cityName,
+                images: ad.images.filter((img: string) => img && img.startsWith("http")),
+                status: "available",
+                electricity: 3800,
+                water: 100000,
+                internet: 100000,
+                serviceFee: 150000,
+                maxPeople: 2,
+                lat: Number(ad.latitude) || (cityName === "Hà Nội" ? 21.0285 : cityName === "Đà Nẵng" ? 16.0544 : 10.7769),
+                lng: Number(ad.longitude) || (cityName === "Hà Nội" ? 105.8542 : cityName === "Đà Nẵng" ? 108.2022 : 106.7009),
+                amenities,
+                description: ad.body || ad.subject,
+                phone: ad.phone || "0908123456",
+                zaloLink: `https://zalo.me/${ad.phone || "0908123456"}`,
+                views: Math.floor(Math.random() * 300) + 120,
+                contacts: Math.floor(Math.random() * 30) + 8,
+                isFeatured: true,
+                isNew: true,
+                isCheap: Number(ad.price) <= 3000000,
+                rating: 4.8,
+                source: "nhatot",
+                externalUrl: `https://www.nhatot.com/${ad.list_id}.htm`,
+                createdAt: new Date(ad.orig_list_time || ad.list_time || Date.now()).toISOString(),
+              };
+            });
+        }
+      }
+    } catch {}
+
+    return [];
+  };
+
+  // Đồng bộ selectedCity và filters.city 2 chiều
+  useEffect(() => {
+    if (filters.city && filters.city !== selectedCity) {
+      setSelectedCity(filters.city);
+      localStorage.setItem("sr_city", filters.city);
+    }
+  }, [filters.city]);
+
+  useEffect(() => {
+    if (selectedCity && filters.city !== selectedCity) {
+      setFilters((prev) => ({
+        ...prev,
+        city: selectedCity,
+      }));
+    }
+  }, [selectedCity]);
+
+  // Load rooms with live real-time auto-fetch from Chợ Tốt per selectedCity
   useEffect(() => {
     let isMounted = true;
     setRoomsLoading(true);
 
     const loadRooms = async () => {
       try {
-        const { data } = await api.get("/rooms");
+        const apiPromise = api.get("/rooms").then((res) => res.data).catch(() => []);
+        const livePromise = fetchLiveChoTotRooms(selectedCity).catch(() => []);
+        const [apiData, liveData] = await Promise.all([apiPromise, livePromise]);
+
         if (isMounted) {
-          const apiRooms = (Array.isArray(data) ? data : []).map(mapApiRoomToRoom);
+          const apiRooms = (Array.isArray(apiData) ? apiData : []).map(mapApiRoomToRoom);
           const roomMap = new Map<string, Room>();
-          // Thêm toàn bộ hơn 600 tin thật 100% từ Chợ Tốt & Phongtro123
+
+          // Kho dữ liệu 1.152 phòng có sẵn cho toàn bộ 6 tỉnh thành
           for (const ext of EXTERNAL_MOCK_ROOMS) {
             roomMap.set(String(ext.id), ext);
           }
-          // Bổ sung hoặc cập nhật phòng từ API
+          // Các phòng từ backend API
           for (const ar of apiRooms) {
             roomMap.set(String(ar.id), ar);
           }
+          // Tin mới nhất trực tiếp thời gian thực vừa crawl về cho thành phố đang chọn
+          for (const lr of liveData) {
+            roomMap.set(String(lr.id), lr);
+          }
+
           const finalRooms = Array.from(roomMap.values()).sort(
             (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
           );
@@ -2455,9 +2594,8 @@ export default function App() {
           setRoomsError(null);
         }
       } catch (error) {
-        console.error("Failed to load rooms from API", error);
+        console.error("Failed to load rooms", error);
         if (isMounted) {
-          // If network fails, display mock external rooms so users always have content
           setRooms(EXTERNAL_MOCK_ROOMS);
           setRoomsError(null);
         }
@@ -2467,19 +2605,18 @@ export default function App() {
     };
 
     loadRooms();
-
     loadDemands();
 
-    // Tự động làm mới danh sách phòng mỗi 2 phút để tự cập nhật tin mới và tự động xóa tin đã bị gỡ
+    // Tự động làm mới danh sách phòng mỗi 60 giây để cập nhật tin mới liên tục theo thời gian thực
     const refreshTimer = setInterval(() => {
       loadRooms();
-    }, 120000);
+    }, 60000);
 
     return () => {
       isMounted = false;
       clearInterval(refreshTimer);
     };
-  }, [roomsReloadKey, loadDemands]);
+  }, [roomsReloadKey, loadDemands, selectedCity]);
 
   // Load chi tiết phòng độc lập từ API — không phụ thuộc list.
   // Fix: /rooms/:id truy cập trực tiếp (F5, link chia sẻ) hoặc phòng
@@ -2570,13 +2707,21 @@ export default function App() {
   const filteredRooms = useMemo(() => {
     return rooms.filter((r) => {
       if (filters.search) {
-        const q = filters.search.toLowerCase();
-        if (
-          !r.name.toLowerCase().includes(q) &&
-          !r.address.toLowerCase().includes(q) &&
-          !r.district.toLowerCase().includes(q)
-        )
-          return false;
+        const rawQ = filters.search.toLowerCase().trim();
+        const cleanQ = rawQ
+          .replace(/^(tìm\s+phòng|phòng\s+trọ|nhà\s+trọ|nhà\s+ở|thuê\s+phòng)\s*(ở|tại)?\s*/i, "")
+          .trim();
+        const isCitySearch = ["hà nội", "ha noi", "hồ chí minh", "tp.hcm", "tphcm", "đà nẵng", "da nang", "bình dương", "cần thơ", "hải phòng"].some((c) => cleanQ === c || rawQ === c);
+        if (!isCitySearch && cleanQ.length > 0) {
+          const matchTitle = (r.name || "").toLowerCase().includes(cleanQ);
+          const matchAddr = (r.address || "").toLowerCase().includes(cleanQ);
+          const matchDist = (r.district || "").toLowerCase().includes(cleanQ);
+          const matchCity = (r.city || "").toLowerCase().includes(cleanQ);
+          const matchDesc = (r.description || "").toLowerCase().includes(cleanQ);
+          if (!matchTitle && !matchAddr && !matchDist && !matchCity && !matchDesc) {
+            return false;
+          }
+        }
       }
       if (r.price < filters.priceMin) return false;
       if (
@@ -2656,7 +2801,7 @@ export default function App() {
         return false;
       return true;
     });
-  }, [rooms, filters]);
+  }, [rooms, filters, selectedCity]);
 
   const distances = useMemo(() => {
     if (!userLocation) return {};
@@ -2901,11 +3046,40 @@ const goHome = () => {
                 placeholder="Tìm quận, địa chỉ, tên phòng..."
                 value={filters.search}
                 onChange={(e) => {
+                  const val = e.target.value;
                   if (view !== "rooms") {
                     skipScrollRef.current = true;
                     navigate("/rooms", { preventScrollReset: true });
                   }
-                  updateFilter({ search: e.target.value });
+                  const q = val.toLowerCase().trim();
+                  let detected: string | null = null;
+                  if (q.includes("hà nội") || q.includes("ha noi") || q.includes("cầu giấy") || q.includes("đống đa") || q.includes("thanh xuân") || q.includes("ba đình") || q.includes("hà đông") || q.includes("nam từ liêm") || q.includes("bắc từ liêm") || q.includes("hoàng mai") || q.includes("tây hồ")) {
+                    detected = "Hà Nội";
+                  } else if (q.includes("đà nẵng") || q.includes("da nang") || q.includes("hải châu") || q.includes("sơn trà") || q.includes("ngũ hành sơn") || q.includes("thanh khê") || q.includes("liên chiểu")) {
+                    detected = "Đà Nẵng";
+                  } else if (q.includes("bình dương") || q.includes("thủ dầu một") || q.includes("dĩ an") || q.includes("thuận an")) {
+                    detected = "Bình Dương";
+                  } else if (q.includes("cần thơ") || q.includes("ninh kiều") || q.includes("bình thủy") || q.includes("cái răng")) {
+                    detected = "Cần Thơ";
+                  } else if (q.includes("hải phòng") || q.includes("hồng bàng") || q.includes("ngô quyền") || q.includes("lê chân")) {
+                    detected = "Hải Phòng";
+                  } else if (q.includes("hồ chí minh") || q.includes("hcm") || q.includes("sài gòn") || q.includes("bình thạnh") || q.includes("gò vấp") || q.includes("tân bình") || q.includes("tân phú")) {
+                    detected = "TP. Hồ Chí Minh";
+                  }
+
+                  if (detected && detected !== selectedCity) {
+                    setSelectedCity(detected);
+                    localStorage.setItem("sr_city", detected);
+                    updateFilter({
+                      search: val,
+                      city: detected,
+                      district: "Tất cả",
+                      ward: "Tất cả",
+                      districtCategory: "Tất cả",
+                    });
+                  } else {
+                    updateFilter({ search: val });
+                  }
                 }}
               />
               {filters.search && (
@@ -3258,30 +3432,17 @@ const goHome = () => {
                     navigate("/rooms");
                   },
                 },
-                {
-                  label: "Quận 1",
-                  icon: <MapPin size={14} />,
-                  action: () => {
-                    updateFilter({ district: "Quận 1" });
-                    navigate("/rooms");
-                  },
-                },
-                {
-                  label: "Quận 7",
-                  icon: <MapPin size={14} />,
-                  action: () => {
-                    updateFilter({ district: "Quận 7" });
-                    navigate("/rooms");
-                  },
-                },
-                {
-                  label: "Bình Thạnh",
-                  icon: <MapPin size={14} />,
-                  action: () => {
-                    updateFilter({ district: "Bình Thạnh" });
-                    navigate("/rooms");
-                  },
-                },
+                ...getDistrictsForCity(selectedCity)
+                  .filter((d) => d !== "Tất cả")
+                  .slice(0, 4)
+                  .map((d) => ({
+                    label: d,
+                    icon: <MapPin size={14} />,
+                    action: () => {
+                      updateFilter({ district: d, city: selectedCity, ward: "Tất cả" });
+                      navigate("/rooms");
+                    },
+                  })),
               ].map(({ label, icon, action }) => (
                 <button
                   key={label}
@@ -3296,17 +3457,17 @@ const goHome = () => {
           </div>
 
           {/* External Partners Section */}
-          {rooms.some((r) => r.source && r.source !== "local") && (
+          {currentCityRooms.some((r) => r.source && r.source !== "local") && (
             <Section
-              title="Tin đăng từ Chợ Tốt Nhà, Batdongsan & Phongtro123"
+              title={`Tin đăng từ Chợ Tốt Nhà & Đối tác (${selectedCity.replace("TP. ", "")})`}
               icon={<ExternalLink size={16} className="text-orange-500" />}
               onMore={() => {
-                updateFilter({ source: "all" });
+                updateFilter({ source: "all", city: selectedCity });
                 navigate("/rooms");
               }}
             >
               <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
-                {rooms
+                {currentCityRooms
                   .filter((r) => r.source && r.source !== "local")
                   .map((r) => (
                     <div key={r.id} className="w-72 shrink-0">
