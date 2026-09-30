@@ -88,7 +88,11 @@ import { REAL_ROOMS } from "../data/realRooms";
 import {
   CITIES,
   DISTRICT_CATEGORIES,
-  ALL_HCM_DISTRICTS,
+  DISTRICT_CATEGORIES_BY_CITY,
+  CITY_COORDINATES,
+  getDistrictCategoriesForCity,
+  getDistrictsForCity,
+  isRoomInCity,
   SOURCE_OPTIONS,
   getWardsForDistrict,
   CityItem,
@@ -337,6 +341,7 @@ const DEFAULT_FILTER: FilterState = {
   priceMax: 15000000,
   areaMin: 0,
   areaMax: 100,
+  city: typeof window !== "undefined" ? localStorage.getItem("sr_city") || "TP. Hồ Chí Minh" : "TP. Hồ Chí Minh",
   district: "Tất cả",
   amenities: [],
   status: "available",
@@ -837,6 +842,7 @@ function FilterPanel({
     onChange({ amenities: next });
   };
 
+  const currentCategories = getDistrictCategoriesForCity(filters.city);
   const currentWards = getWardsForDistrict(filters.district);
 
   return (
@@ -923,7 +929,7 @@ function FilterPanel({
           )}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {["Tất cả", ...DISTRICT_CATEGORIES.map((c) => c.name)].map((cat) => (
+          {["Tất cả", ...currentCategories.map((c) => c.name)].map((cat) => (
             <button
               key={cat}
               type="button"
@@ -960,7 +966,7 @@ function FilterPanel({
           className="w-full rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 sm:text-sm"
         >
           <option value="Tất cả">Tất cả quận / huyện</option>
-          {DISTRICT_CATEGORIES.map((cat) => (
+          {currentCategories.map((cat) => (
             <optgroup key={cat.name} label={`── ${cat.name} ──`}>
               {cat.districts.map((d) => (
                 <option key={d} value={d}>
@@ -1969,11 +1975,13 @@ function MapPage({
     );
   };
 
-  const effectiveLat = userGps?.lat ?? 10.7769;
-  const effectiveLng = userGps?.lng ?? 106.7009;
+  const defaultCityCoord = CITY_COORDINATES[selectedCity] || CITY_COORDINATES["TP. Hồ Chí Minh"] || { lat: 10.7769, lng: 106.7009 };
+  const effectiveLat = userGps?.lat ?? defaultCityCoord.lat;
+  const effectiveLng = userGps?.lng ?? defaultCityCoord.lng;
 
   const validRooms = useMemo(() => {
     return rooms
+      .filter((r) => isRoomInCity(r, selectedCity))
       .filter((r) => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng))
       .map((r) => {
         const dist = haversine(effectiveLat, effectiveLng, r.lat!, r.lng!);
@@ -1981,7 +1989,7 @@ function MapPage({
       })
       .filter((r) => selectedRadius === 0 || r.distanceKm <= selectedRadius)
       .sort((a, b) => a.distanceKm - b.distanceKm);
-  }, [rooms, effectiveLat, effectiveLng, selectedRadius]);
+  }, [rooms, selectedCity, effectiveLat, effectiveLng, selectedRadius]);
 
   const radiusOptions = [
     { label: "1 km", value: 1 },
@@ -2582,20 +2590,18 @@ export default function App() {
         (r.area == null || r.area > filters.areaMax)
       )
         return false;
-      // Lọc theo tỉnh / thành phố
-      if (
-        filters.city &&
-        filters.city !== "Tất cả" &&
-        r.city &&
-        !r.city.toLowerCase().includes(filters.city.toLowerCase().replace("tp.", "").replace("thành phố", "").trim()) &&
-        !filters.city.toLowerCase().includes(r.city.toLowerCase())
-      ) {
-        return false;
+      // Lọc theo tỉnh / thành phố (chính xác tuyệt đối)
+      const targetCity = filters.city || selectedCity;
+      if (targetCity && targetCity !== "Tất cả") {
+        if (!isRoomInCity(r, targetCity)) {
+          return false;
+        }
       }
 
       // Lọc theo danh mục khu vực quận
       if (filters.districtCategory && filters.districtCategory !== "Tất cả") {
-        const cat = DISTRICT_CATEGORIES.find((c) => c.name === filters.districtCategory);
+        const categories = getDistrictCategoriesForCity(targetCity);
+        const cat = categories.find((c) => c.name === filters.districtCategory);
         if (cat) {
           const matchDist = cat.districts.some(
             (d) => r.district === d || (r.address && r.address.includes(d)) || r.district.toLowerCase().includes(d.toLowerCase())
@@ -2828,9 +2834,12 @@ const handleContact = useCallback((room: Room) => {
   );
 
   const resetFilters = useCallback(() => {
-    setFilters(DEFAULT_FILTER);
+    setFilters({
+      ...DEFAULT_FILTER,
+      city: selectedCity,
+    });
     setSortOption("newest");
-  }, []);
+  }, [selectedCity]);
 
 const goHome = () => {
     navigate("/");
@@ -3076,15 +3085,16 @@ const goHome = () => {
 
   // ─── HOME ────────────────────────────────────────────
   const HomePage = () => {
-    const featuredRooms = rooms.filter(
+    const currentCityRooms = rooms.filter((r) => isRoomInCity(r, selectedCity));
+    const featuredRooms = currentCityRooms.filter(
       (r) => r.isFeatured && r.status === "available",
     );
-    const newRooms = rooms.filter((r) => r.isNew);
-    const cheapRooms = rooms.filter(
+    const newRooms = currentCityRooms.filter((r) => r.isNew);
+    const cheapRooms = currentCityRooms.filter(
       (r) => r.isCheap && r.status === "available",
     );
     const nearRooms = userLocation
-      ? [...rooms]
+      ? [...currentCityRooms]
           .sort(
             (a, b) =>
               (distances[a.id] ?? 99) - (distances[b.id] ?? 99),
@@ -3161,15 +3171,15 @@ const goHome = () => {
             <span className="flex items-center gap-2">
               <Building2 size={14} />{" "}
               {
-                rooms.filter((r) => r.status === "available")
+                currentCityRooms.filter((r) => r.status === "available")
                   .length
               }{" "}
               phòng còn trống
             </span>
             <span className="flex items-center gap-2">
               <MapPin size={14} />{" "}
-              {new Set(rooms.map((r) => r.district)).size}{" "}
-              quận/huyện
+              {new Set(currentCityRooms.map((r) => r.district)).size}{" "}
+              quận/huyện ({selectedCity.replace("TP. ", "")})
             </span>
             <span className="flex items-center gap-2">
               <Users size={14} /> 2,400+ người đã thuê
@@ -3662,7 +3672,7 @@ const goHome = () => {
           <span className="text-xs text-muted-foreground font-semibold shrink-0">Khu vực:</span>
           {[
             { id: "Tất cả", label: "Toàn thành phố" },
-            ...DISTRICT_CATEGORIES.map((c) => ({ id: c.name, label: c.name.replace("Khu vực ", "") })),
+            ...getDistrictCategoriesForCity(selectedCity).map((c) => ({ id: c.name, label: c.name.replace("Khu vực ", "") })),
           ].map((item) => {
             const isActive = (filters.districtCategory || "Tất cả") === item.id;
             return (

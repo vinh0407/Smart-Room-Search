@@ -16,8 +16,8 @@ import {
 
 export const listRooms = async (req, res) => {
   try {
-    const { status, district, priceMin, priceMax, areaMin, areaMax, search } = req.query;
-    const rooms = await getAllRooms({ status, district, priceMin, priceMax, areaMin, areaMax, search });
+    const { status, district, city, priceMin, priceMax, areaMin, areaMax, search } = req.query;
+    const rooms = await getAllRooms({ status, district, city, priceMin, priceMax, areaMin, areaMax, search });
     res.set('X-Last-Modified', String(roomsLastModified));
     return res.status(200).json(rooms);
   } catch (error) {

@@ -55,16 +55,18 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
         )
     }
 
-    val categoryOptions = listOf("Tất cả khu vực", "Trung tâm", "Phía Đông", "Phía Tây", "Phía Nam", "Ngoại thành")
+    val currentCategories = remember(selectedCity) {
+        LocationsData.getDistrictCategoriesForCity(selectedCity)
+    }
+    val categoryOptions = remember(currentCategories) {
+        listOf("Tất cả khu vực") + currentCategories.map { it.name }
+    }
     val priceOptions = listOf("Tất cả", "< 3 triệu", "3 - 5 triệu", "5 - 8 triệu", "> 8 triệu")
     val sourceOptions = listOf("Tất cả", "✨ Chính chủ (Web tôi)", "Chợ Tốt Nhà", "Batdongsan", "Phongtro123")
     val amenityOptions = listOf("wifi", "máy lạnh", "tủ lạnh", "máy giặt", "ban công", "gác lửng", "bãi xe", "bảo vệ 24/7")
 
     val filteredRooms = rooms.filter { room ->
-        val matchCity = selectedCity == "Tất cả" ||
-                room.city.contains(selectedCity, ignoreCase = true) ||
-                selectedCity.contains(room.city, ignoreCase = true) ||
-                (selectedCity == "TP.HCM" && (room.city.contains("Hồ Chí Minh", ignoreCase = true) || room.city.contains("HCM", ignoreCase = true)))
+        val matchCity = LocationsData.isRoomInCity(room.city, room.address, room.district, selectedCity)
 
         val matchQuery = searchQuery.isEmpty() ||
                 room.title.contains(searchQuery, ignoreCase = true) ||
@@ -73,8 +75,8 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
         val matchCategory = when (selectedCategory) {
             "Tất cả khu vực" -> true
             else -> {
-                val cat = LocationsData.DISTRICT_CATEGORIES.firstOrNull { it.name.contains(selectedCategory, ignoreCase = true) }
-                cat?.districts?.any { d -> room.district.contains(d, ignoreCase = true) || d.contains(room.district, ignoreCase = true) } ?: true
+                val cat = currentCategories.firstOrNull { it.name.contains(selectedCategory, ignoreCase = true) || selectedCategory.contains(it.name, ignoreCase = true) }
+                cat?.districts?.any { d -> room.district.contains(d, ignoreCase = true) || d.contains(room.district, ignoreCase = true) || room.address.contains(d, ignoreCase = true) } ?: true
             }
         }
 
@@ -122,11 +124,11 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
             (if (selectedStatus != "Tất cả") 1 else 0) +
             selectedAmenities.size
 
-    val availableDistricts = remember(selectedCategory) {
+    val availableDistricts = remember(selectedCity, selectedCategory) {
         if (selectedCategory == "Tất cả khu vực") {
-            LocationsData.ALL_HCM_DISTRICTS
+            LocationsData.getDistrictsForCity(selectedCity)
         } else {
-            val cat = LocationsData.DISTRICT_CATEGORIES.firstOrNull { it.name.contains(selectedCategory, ignoreCase = true) }
+            val cat = currentCategories.firstOrNull { it.name.contains(selectedCategory, ignoreCase = true) || selectedCategory.contains(it.name, ignoreCase = true) }
             listOf("Tất cả") + (cat?.districts ?: emptyList())
         }
     }

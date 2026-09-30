@@ -54,10 +54,7 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
     }
 
     val filteredRooms = rooms.filter {
-        val matchCity = selectedCity == "Tất cả" ||
-                it.city.contains(selectedCity, ignoreCase = true) ||
-                selectedCity.contains(it.city, ignoreCase = true) ||
-                (selectedCity == "TP.HCM" && (it.city.contains("Hồ Chí Minh", ignoreCase = true) || it.city.contains("HCM", ignoreCase = true)))
+        val matchCity = LocationsData.isRoomInCity(it.city, it.address, it.district, selectedCity)
 
         val matchDistrict = selectedDistrict == "Tất cả" ||
                 it.district.equals(selectedDistrict, ignoreCase = true) ||
@@ -97,6 +94,7 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 Spacer(modifier = Modifier.height(10.dp))
                 HomeDistrictChips(
                     selected = selectedDistrict,
+                    city = selectedCity,
                     onSelected = {
                         selectedDistrict = it
                         selectedWard = "Tất cả phường"
@@ -189,7 +187,7 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 item {
                     SectionHeader(
                         title = "Danh Sách Phòng Mới",
-                        subtitle = "Tin đăng phòng trọ mới nhất tại TP.HCM"
+                        subtitle = "Tin đăng phòng trọ mới nhất tại $selectedCity"
                     )
                 }
 
@@ -269,8 +267,10 @@ fun HomeHeader(
 }
 
 @Composable
-fun HomeDistrictChips(selected: String, onSelected: (String) -> Unit) {
-    val districts = LocationsData.ALL_HCM_DISTRICTS
+fun HomeDistrictChips(selected: String, city: String, onSelected: (String) -> Unit) {
+    val districts = remember(city) {
+        LocationsData.getDistrictsForCity(city)
+    }
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)

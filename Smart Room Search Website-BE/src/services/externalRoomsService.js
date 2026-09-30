@@ -304,17 +304,29 @@ const cleanDistrictName = (rawDistrict = '') => {
  * Fetch all available ads across multiple pages from Chợ Tốt Gateway API
  */
 const fetchAllLiveChoTot = async () => {
-  const offsets = [0, 50, 100, 150, 200, 250, 300, 350, 400, 450];
-  const promises = offsets.map((o) =>
-    fetch(`https://gateway.chotot.com/v1/public/ad-listing?region_v2=13000&cg=1050&limit=50&o=${o}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        Accept: 'application/json',
-      },
-    })
-      .then((r) => (r.ok ? r.json() : { ads: [] }))
-      .catch(() => ({ ads: [] }))
-  );
+  const cityTargets = [
+    { region: 13000, name: 'TP. Hồ Chí Minh', offsets: [0, 50, 100, 150, 200, 250, 300, 350, 400] },
+    { region: 12000, name: 'Hà Nội', offsets: [0, 50, 100, 150, 200] },
+    { region: 3017, name: 'Đà Nẵng', offsets: [0, 50, 100] },
+    { region: 2011, name: 'Bình Dương', offsets: [0, 50] },
+  ];
+
+  const promises = [];
+  for (const target of cityTargets) {
+    for (const o of target.offsets) {
+      promises.push(
+        fetch(`https://gateway.chotot.com/v1/public/ad-listing?region_v2=${target.region}&cg=1050&limit=50&o=${o}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            Accept: 'application/json',
+          },
+        })
+          .then((r) => (r.ok ? r.json() : { ads: [] }))
+          .then((data) => ({ ads: data.ads || [], city: target.name }))
+          .catch(() => ({ ads: [], city: target.name }))
+      );
+    }
+  }
 
   const pagesResults = await Promise.all(promises);
   const allAds = [];
@@ -327,10 +339,11 @@ const fetchAllLiveChoTot = async () => {
         if (!ad.images || ad.images.length === 0) continue;
         seenIds.add(ad.list_id);
 
+        const cityName = ad.region_name || page.city;
         const district = cleanDistrictName(ad.area_name);
         const street = ad.street_name ? `${ad.street_name}, ` : '';
         const ward = ad.ward_name ? `${ad.ward_name}, ` : '';
-        const fullAddress = `${street}${ward}${ad.area_name || 'TP.HCM'}, TP.HCM`;
+        const fullAddress = `${street}${ward}${ad.area_name || cityName}, ${cityName}`;
 
         const amenities = ['Wifi'];
         const text = (ad.subject + ' ' + (ad.body || '')).toLowerCase();
@@ -349,7 +362,7 @@ const fetchAllLiveChoTot = async () => {
           description: ad.body || ad.subject,
           address: fullAddress,
           district: district,
-          city: 'TP.HCM',
+          city: cityName,
           price: Number(ad.price),
           area: Number(ad.size) || 25,
           images: ad.images.filter((img) => img && img.startsWith('http')),
@@ -544,6 +557,26 @@ export const fetchExternalRooms = async (filters = {}) => {
 
   if (filters.status && filters.status !== 'all') {
     rooms = rooms.filter((r) => r.status === filters.status);
+  }
+  if (filters.city && filters.city !== 'Tất cả') {
+    const target = filters.city.toLowerCase().trim();
+    rooms = rooms.filter((r) => {
+      const rc = (r.city || '').toLowerCase();
+      const ra = (r.address || '').toLowerCase();
+      if (target.includes('hà nội') || target.includes('ha noi')) {
+        return (rc.includes('hà nội') || ra.includes('hà nội') || ra.includes('ha noi')) && !ra.includes('hồ chí minh');
+      }
+      if (target.includes('hồ chí minh') || target.includes('hcm')) {
+        return (rc.includes('hồ chí minh') || rc.includes('hcm') || ra.includes('hồ chí minh') || ra.includes('tp.hcm')) && !ra.includes('hà nội');
+      }
+      if (target.includes('đà nẵng') || target.includes('da nang')) {
+        return rc.includes('đà nẵng') || ra.includes('đà nẵng');
+      }
+      if (target.includes('bình dương') || target.includes('binh duong')) {
+        return rc.includes('bình dương') || ra.includes('bình dương');
+      }
+      return rc.includes(target) || ra.includes(target);
+    });
   }
   if (filters.district && filters.district !== 'Tất cả') {
     const target = filters.district.toLowerCase().replace('quận ', '');

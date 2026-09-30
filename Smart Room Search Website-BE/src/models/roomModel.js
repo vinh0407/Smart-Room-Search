@@ -144,6 +144,26 @@ export const getAllRooms = async (filters = {}) => {
     if (filters.status && filters.status !== 'all') {
       result = result.filter((r) => r.status === filters.status);
     }
+    if (filters.city && filters.city !== 'Tất cả') {
+      const targetCity = filters.city.toLowerCase().trim();
+      result = result.filter((r) => {
+        const rc = (r.city || '').toLowerCase();
+        const ra = (r.address || '').toLowerCase();
+        if (targetCity.includes('hà nội') || targetCity.includes('ha noi')) {
+          return (rc.includes('hà nội') || ra.includes('hà nội') || ra.includes('ha noi')) && !ra.includes('hồ chí minh');
+        }
+        if (targetCity.includes('hồ chí minh') || targetCity.includes('hcm')) {
+          return (rc.includes('hồ chí minh') || rc.includes('hcm') || ra.includes('hồ chí minh') || ra.includes('tp.hcm')) && !ra.includes('hà nội');
+        }
+        if (targetCity.includes('đà nẵng') || targetCity.includes('da nang')) {
+          return rc.includes('đà nẵng') || ra.includes('đà nẵng');
+        }
+        if (targetCity.includes('bình dương') || targetCity.includes('binh duong')) {
+          return rc.includes('bình dương') || ra.includes('bình dương');
+        }
+        return rc.includes(targetCity) || ra.includes(targetCity);
+      });
+    }
     if (filters.district && filters.district !== 'Tất cả') {
       result = result.filter((r) => r.district === filters.district);
     }
@@ -182,6 +202,12 @@ export const getAllRooms = async (filters = {}) => {
   if (filters.status && filters.status !== 'all') {
     conditions.push('status = ?');
     values.push(filters.status);
+  }
+  if (filters.city && filters.city !== 'Tất cả') {
+    conditions.push('(city LIKE ? OR address LIKE ?)');
+    const cleanCity = filters.city.replace(/^tp\.?\s*/i, '').replace(/^thành phố\s*/i, '').trim();
+    const cityPattern = `%${cleanCity}%`;
+    values.push(cityPattern, cityPattern);
   }
   if (filters.district && filters.district !== 'Tất cả') {
     conditions.push('district = ?');

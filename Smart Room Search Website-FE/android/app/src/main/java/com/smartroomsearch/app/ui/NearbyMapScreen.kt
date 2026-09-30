@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.smartroomsearch.app.model.Room
+import com.smartroomsearch.app.model.LocationsData
 import java.text.DecimalFormat
 
 @Composable
@@ -40,8 +41,10 @@ fun NearbyMapScreen(
     onRoomClick: (Int) -> Unit
 ) {
     val rooms by viewModel.rooms.collectAsState()
+    val selectedCity by viewModel.selectedCity.collectAsState()
     NearbyMapScreen(
         rooms = rooms,
+        selectedCity = selectedCity,
         onBack = onBack ?: {},
         onRoomClick = { room -> onRoomClick(room.id) }
     )
@@ -52,6 +55,7 @@ fun NearbyMapScreen(
 @Composable
 fun NearbyMapScreen(
     rooms: List<Room>,
+    selectedCity: String = "TP. Hồ Chí Minh",
     onBack: () -> Unit,
     onRoomClick: (Room) -> Unit
 ) {
@@ -59,9 +63,12 @@ fun NearbyMapScreen(
     var selectedRadius by remember { mutableStateOf("5 km") }
     val radiusOptions = listOf("1 km", "3 km", "5 km", "10 km", "Tất cả")
 
-    // Vị trí mặc định tại trung tâm TP.HCM (hoặc tọa độ phòng đầu tiên)
-    val userLat = 10.7769
-    val userLng = 106.7009
+    val cityCoord = remember(selectedCity) {
+        val norm = LocationsData.normalizeCityName(selectedCity)
+        LocationsData.CITY_COORDINATES[norm] ?: Pair(10.7769, 106.7009)
+    }
+    val userLat = cityCoord.first
+    val userLng = cityCoord.second
 
     fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6371.0 // Bán kính Trái Đất (km)
@@ -82,9 +89,11 @@ fun NearbyMapScreen(
         else -> Double.MAX_VALUE
     }
 
-    val nearbyRooms = remember(rooms, selectedRadius) {
+    val nearbyRooms = remember(rooms, selectedCity, selectedRadius) {
         rooms.filter { r ->
-            r.lat in 8.0..24.0 && r.lng in 102.0..110.0 && calculateDistance(userLat, userLng, r.lat, r.lng) <= radiusLimit
+            LocationsData.isRoomInCity(r.city, r.address, r.district, selectedCity) &&
+            r.lat in 8.0..24.0 && r.lng in 102.0..110.0 &&
+            (radiusLimit == Double.MAX_VALUE || calculateDistance(userLat, userLng, r.lat, r.lng) <= radiusLimit)
         }.sortedBy { calculateDistance(userLat, userLng, it.lat, it.lng) }.take(120)
     }
 
