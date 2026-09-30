@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -36,6 +38,8 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
     var selectedDistrict by remember { mutableStateOf("Tất cả") }
     var selectedWard by remember { mutableStateOf("Tất cả phường") }
     var priceFilter by remember { mutableStateOf("Tất cả") }
+    var areaFilter by remember { mutableStateOf("Tất cả") }
+    var sortOption by remember { mutableStateOf("Mới nhất") }
     var selectedStatus by remember { mutableStateOf("Tất cả") }
     var selectedAmenities by remember { mutableStateOf(setOf<String>()) }
     var selectedSource by remember { mutableStateOf("Tất cả") }
@@ -62,6 +66,8 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
         listOf("Tất cả khu vực") + currentCategories.map { it.name }
     }
     val priceOptions = listOf("Tất cả", "< 3 triệu", "3 - 5 triệu", "5 - 8 triệu", "> 8 triệu")
+    val areaOptions = listOf("Tất cả", "< 20 m²", "20 - 30 m²", "30 - 50 m²", "> 50 m²")
+    val sortOptions = listOf("Mới nhất", "Giá thấp → cao", "Giá cao → thấp", "Diện tích lớn nhất")
     val sourceOptions = listOf("Tất cả", "✨ Chính chủ (Web tôi)", "Chợ Tốt Nhà", "Batdongsan", "Phongtro123")
     val amenityOptions = listOf("wifi", "máy lạnh", "tủ lạnh", "máy giặt", "ban công", "gác lửng", "bãi xe", "bảo vệ 24/7")
 
@@ -96,6 +102,14 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
             else -> true
         }
 
+        val matchArea = when (areaFilter) {
+            "< 20 m²" -> room.area != null && room.area < 20.0
+            "20 - 30 m²" -> room.area != null && room.area in 20.0..30.0
+            "30 - 50 m²" -> room.area != null && room.area in 30.0..50.0
+            "> 50 m²" -> room.area != null && room.area > 50.0
+            else -> true
+        }
+
         val matchStatus = when (selectedStatus) {
             "Còn trống" -> room.status == RoomStatus.available
             else -> true
@@ -113,7 +127,14 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
             room.amenities.any { it.contains(target, ignoreCase = true) }
         }
 
-        matchCity && matchQuery && matchCategory && matchDistrict && matchWard && matchPrice && matchStatus && matchAmenities && matchSource
+        matchCity && matchQuery && matchCategory && matchDistrict && matchWard && matchPrice && matchArea && matchStatus && matchAmenities && matchSource
+    }
+
+    val sortedRooms = when (sortOption) {
+        "Giá thấp → cao" -> filteredRooms.sortedBy { it.price }
+        "Giá cao → thấp" -> filteredRooms.sortedByDescending { it.price }
+        "Diện tích lớn nhất" -> filteredRooms.sortedByDescending { it.area ?: 0.0 }
+        else -> filteredRooms
     }
 
     val activeFiltersCount = (if (selectedCategory != "Tất cả khu vực") 1 else 0) +
@@ -121,6 +142,8 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
             (if (selectedWard != "Tất cả phường") 1 else 0) +
             (if (selectedSource != "Tất cả") 1 else 0) +
             (if (priceFilter != "Tất cả") 1 else 0) +
+            (if (areaFilter != "Tất cả") 1 else 0) +
+            (if (sortOption != "Mới nhất") 1 else 0) +
             (if (selectedStatus != "Tất cả") 1 else 0) +
             selectedAmenities.size
 
@@ -399,14 +422,22 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tìm thấy ${filteredRooms.size} kết quả",
+                    text = "Tìm thấy ${sortedRooms.size} kết quả (${selectedCity.replace("TP. ", "")})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (sortOption != "Mới nhất") {
+                    Text(
+                        text = "• $sortOption",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            if (filteredRooms.isEmpty()) {
+            if (sortedRooms.isEmpty()) {
                 EmptyState(
                     icon = Icons.Default.Search,
                     title = "Không có phòng thỏa điều kiện",
@@ -419,6 +450,8 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                         selectedWard = "Tất cả phường"
                         selectedSource = "Tất cả"
                         priceFilter = "Tất cả"
+                        areaFilter = "Tất cả"
+                        sortOption = "Mới nhất"
                         selectedStatus = "Tất cả"
                         selectedAmenities = emptySet()
                     }
@@ -428,7 +461,7 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(filteredRooms) { room ->
+                    items(sortedRooms) { room ->
                         RoomCard(
                             room = room,
                             isFavorite = favorites.any { it.id == room.id },
@@ -450,7 +483,8 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp)
+                    .padding(horizontal = 20.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -463,9 +497,94 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                     }
                 }
 
+                Spacer(Modifier.height(12.dp))
+
+                // Tỉnh / Thành phố
+                Text("Tỉnh / Thành phố", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("TP. Hồ Chí Minh", "Hà Nội", "Đà Nẵng", "Bình Dương", "Cần Thơ", "Hải Phòng").forEach { city ->
+                        val isSelected = selectedCity.contains(city, ignoreCase = true) || city.contains(selectedCity, ignoreCase = true)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                viewModel.selectCity(city)
+                                selectedCategory = "Tất cả khu vực"
+                                selectedDistrict = "Tất cả"
+                                selectedWard = "Tất cả phường"
+                            },
+                            label = { Text(city, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) }
+                        )
+                    }
+                }
+
                 Spacer(Modifier.height(16.dp))
 
-                // Price Section
+                // Sắp xếp
+                Text("Sắp xếp theo", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    sortOptions.forEach { opt ->
+                        FilterChip(
+                            selected = sortOption == opt,
+                            onClick = { sortOption = opt },
+                            label = { Text(opt, fontSize = 12.sp) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Nguồn đăng / Xuất xứ
+                Text("Nguồn đăng / Xuất xứ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    sourceOptions.forEach { src ->
+                        FilterChip(
+                            selected = selectedSource == src,
+                            onClick = { selectedSource = src },
+                            label = { Text(src, fontSize = 12.sp) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Quận / Huyện
+                Text("Quận / Huyện ($selectedCity)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    availableDistricts.take(16).forEach { dist ->
+                        FilterChip(
+                            selected = selectedDistrict == dist,
+                            onClick = {
+                                selectedDistrict = dist
+                                selectedWard = "Tất cả phường"
+                            },
+                            label = { Text(dist, fontSize = 12.sp) }
+                        )
+                    }
+                }
+
+                // Phường / Xã (nếu đã chọn quận)
+                if (selectedDistrict != "Tất cả" && availableWards.isNotEmpty()) {
+                    Spacer(Modifier.height(14.dp))
+                    Text("Phường / Xã ($selectedDistrict)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        availableWards.take(16).forEach { ward ->
+                            FilterChip(
+                                selected = selectedWard == ward,
+                                onClick = { selectedWard = ward },
+                                label = { Text(ward, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Khoảng giá
                 Text("Khoảng giá", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -480,7 +599,22 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
 
                 Spacer(Modifier.height(16.dp))
 
-                // Status Section
+                // Diện tích
+                Text("Diện tích", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    areaOptions.forEach { opt ->
+                        FilterChip(
+                            selected = areaFilter == opt,
+                            onClick = { areaFilter = opt },
+                            label = { Text(opt, fontSize = 12.sp) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Trạng thái
                 Text("Trạng thái", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -495,7 +629,7 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
 
                 Spacer(Modifier.height(16.dp))
 
-                // Amenities Section
+                // Tiện nghi
                 Text("Tiện nghi", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -513,6 +647,7 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
 
                 Spacer(Modifier.height(24.dp))
 
+                // Action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -524,6 +659,8 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                             selectedWard = "Tất cả phường"
                             selectedSource = "Tất cả"
                             priceFilter = "Tất cả"
+                            areaFilter = "Tất cả"
+                            sortOption = "Mới nhất"
                             selectedStatus = "Tất cả"
                             selectedAmenities = emptySet()
                         },
@@ -538,10 +675,10 @@ fun RoomsScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Áp dụng", fontWeight = FontWeight.Bold)
+                        Text("Áp dụng (${sortedRooms.size})", fontWeight = FontWeight.Bold)
                     }
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(28.dp))
             }
         }
     }

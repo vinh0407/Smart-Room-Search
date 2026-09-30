@@ -60,8 +60,8 @@ fun NearbyMapScreen(
     onRoomClick: (Room) -> Unit
 ) {
     val context = LocalContext.current
-    var selectedRadius by remember { mutableStateOf("5 km") }
-    val radiusOptions = listOf("1 km", "3 km", "5 km", "10 km", "Tất cả")
+    var selectedRadius by remember { mutableStateOf("Tất cả") }
+    val radiusOptions = listOf("Tất cả", "3 km", "5 km", "10 km", "15 km")
 
     val cityCoord = remember(selectedCity) {
         val norm = LocationsData.normalizeCityName(selectedCity)
@@ -150,7 +150,7 @@ fun NearbyMapScreen(
             <div id="map"></div>
             <script>
                 try {
-                    var map = L.map('map', { zoomControl: false }).setView([$userLat, $userLng], 13);
+                    var map = L.map('map', { zoomControl: true }).setView([$userLat, $userLng], 13);
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         maxZoom: 19,
                         attribution: '© OpenStreetMap'
@@ -158,7 +158,7 @@ fun NearbyMapScreen(
 
                     // User Location Pin
                     var userIcon = L.divIcon({ className: 'user-pin', iconSize: [14, 14] });
-                    L.marker([$userLat, $userLng], { icon: userIcon }).addTo(map).bindPopup("<b>Vị trí của bạn</b>");
+                    L.marker([$userLat, $userLng], { icon: userIcon }).addTo(map).bindPopup("<b>Vị trí trung tâm ($selectedCity)</b>");
 
                     var markers = [$markersJs];
                     if (markers.length > 0) {
@@ -183,6 +183,7 @@ fun NearbyMapScreen(
                         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
                     }
                     setTimeout(function() { map.invalidateSize(); }, 300);
+                    setTimeout(function() { map.invalidateSize(); }, 800);
                 } catch(e) {
                     console.error("Map init error:", e);
                 }
@@ -226,6 +227,11 @@ fun NearbyMapScreen(
                     WebView(ctx).apply {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
+                        settings.databaseEnabled = true
+                        settings.allowFileAccess = true
+                        settings.allowContentAccess = true
+                        settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         webViewClient = WebViewClient()
                         addJavascriptInterface(object {
                             @JavascriptInterface

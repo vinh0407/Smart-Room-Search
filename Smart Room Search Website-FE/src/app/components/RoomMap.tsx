@@ -267,6 +267,7 @@ export default function RoomMap({
     <MapErrorBoundary fallbackHeight={height}>
       <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
         <MapContainer
+          key={`${center[0].toFixed(3)}_${center[1].toFixed(3)}_${variant}`}
           center={center}
           zoom={variant === 'detail' ? 16 : 13}
           style={{ height: '100%', width: '100%', minHeight: '240px' }}

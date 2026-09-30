@@ -1965,6 +1965,7 @@ interface MapPageProps {
   setUserLocation: (loc: { lat: number; lng: number } | null) => void;
   goHome: () => void;
   viewRoom: (id: number | string) => void;
+  selectedCity?: string;
 }
 
 function MapPage({
@@ -1973,8 +1974,9 @@ function MapPage({
   setUserLocation,
   goHome,
   viewRoom,
+  selectedCity = "TP. Hồ Chí Minh",
 }: MapPageProps) {
-  const [selectedRadius, setSelectedRadius] = useState<number>(5); // km, 0 = all
+  const [selectedRadius, setSelectedRadius] = useState<number>(0); // 0 = tất cả (hiển thị toàn bộ phòng thành phố)
   const [userGps, setUserGps] = useState<{ lat: number; lng: number } | null>(userLocation);
   const [locating, setLocating] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -4157,6 +4159,7 @@ const goHome = () => {
               setUserLocation={setUserLocation}
               goHome={goHome}
               viewRoom={viewRoom}
+              selectedCity={selectedCity}
             />
           </motion.div>
         )}
