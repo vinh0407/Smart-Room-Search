@@ -1966,6 +1966,7 @@ interface MapPageProps {
   goHome: () => void;
   viewRoom: (id: number | string) => void;
   selectedCity?: string;
+  onSelectCity?: (city: string) => void;
 }
 
 function MapPage({
@@ -1975,6 +1976,7 @@ function MapPage({
   goHome,
   viewRoom,
   selectedCity = "TP. Hồ Chí Minh",
+  onSelectCity,
 }: MapPageProps) {
   const [selectedRadius, setSelectedRadius] = useState<number>(0); // 0 = tất cả (hiển thị toàn bộ phòng thành phố)
   const [userGps, setUserGps] = useState<{ lat: number; lng: number } | null>(userLocation);
@@ -2003,17 +2005,19 @@ function MapPage({
     );
   };
 
-  const defaultCityCoord = CITY_COORDINATES[selectedCity] || CITY_COORDINATES["TP. Hồ Chí Minh"] || { lat: 10.7769, lng: 106.7009 };
-  const effectiveLat = userGps?.lat ?? defaultCityCoord.lat;
-  const effectiveLng = userGps?.lng ?? defaultCityCoord.lng;
+  const defaultCityCoord = (selectedCity && CITY_COORDINATES[selectedCity]) || CITY_COORDINATES["TP. Hồ Chí Minh"] || { lat: 10.7769, lng: 106.7009 };
+  const effectiveLat = userGps?.lat != null && !isNaN(userGps.lat) ? userGps.lat : defaultCityCoord.lat;
+  const effectiveLng = userGps?.lng != null && !isNaN(userGps.lng) ? userGps.lng : defaultCityCoord.lng;
 
   const validRooms = useMemo(() => {
     return rooms
       .filter((r) => isRoomInCity(r, selectedCity))
-      .filter((r) => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng))
+      .filter((r) => r.lat != null && r.lng != null && !isNaN(Number(r.lat)) && !isNaN(Number(r.lng)))
       .map((r) => {
-        const dist = haversine(effectiveLat, effectiveLng, r.lat!, r.lng!);
-        return { ...r, distanceKm: dist };
+        const lat = Number(r.lat);
+        const lng = Number(r.lng);
+        const dist = haversine(effectiveLat, effectiveLng, lat, lng);
+        return { ...r, lat, lng, distanceKm: dist };
       })
       .filter((r) => selectedRadius === 0 || r.distanceKm <= selectedRadius)
       .sort((a, b) => a.distanceKm - b.distanceKm);
@@ -2047,13 +2051,28 @@ function MapPage({
                 Bản đồ tìm phòng trọ gần bạn
               </h1>
               <p className="text-xs text-muted-foreground">
-                {validRooms.length} phòng trọ {selectedRadius > 0 ? `trong bán kính ${selectedRadius}km` : "trên toàn khu vực"}
+                {validRooms.length} phòng trọ tại {selectedCity} {selectedRadius > 0 ? `trong bán kính ${selectedRadius}km` : "trên toàn khu vực"}
               </p>
             </div>
           </div>
 
-          {/* Radius Options & GPS button */}
+          {/* City Selector, Radius Options & GPS button */}
           <div className="flex items-center gap-2 flex-wrap">
+            {onSelectCity && (
+              <select
+                value={selectedCity}
+                onChange={(e) => onSelectCity(e.target.value)}
+                className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer shadow-sm hover:border-primary transition-all"
+                title="Chọn tỉnh / thành phố"
+              >
+                {CITIES.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
             <button
               type="button"
               onClick={handleGetLocation}
@@ -2091,7 +2110,7 @@ function MapPage({
       {/* Main Map + Side List Container */}
       <div className="flex-1 flex flex-col lg:flex-row relative">
         {/* Map View */}
-        <div className="flex-1 h-[55vh] lg:h-[calc(100vh-120px)] relative">
+        <div className="flex-1 h-[55vh] lg:h-[calc(100vh-120px)] min-h-[380px] relative">
           <Suspense fallback={<div className="h-full w-full bg-muted animate-pulse flex items-center justify-center text-xs text-muted-foreground">Đang tải bản đồ...</div>}>
             <RoomMap
               rooms={validRooms.map((r) => ({
@@ -2109,6 +2128,7 @@ function MapPage({
               radiusKm={selectedRadius > 0 ? selectedRadius : 15}
               height="100%"
               variant="overview"
+              cityCenter={[defaultCityCoord.lat, defaultCityCoord.lng]}
               onViewRoom={(id) => {
                 const target = rooms.find((r) => String(r.id) === String(id));
                 if (target) setSelectedRoom(target);
@@ -2469,18 +2489,7 @@ export default function App() {
   const fetchLiveChoTotRooms = async (cityName: string): Promise<Room[]> => {
     const regId = REGION_IDS[cityName] || 13000;
     
-    // 1. Thử gọi API Serverless /api/live-rooms
-    try {
-      const res = await fetch(`/api/live-rooms?region=${regId}&city=${encodeURIComponent(cityName)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.rooms) && json.rooms.length > 0) {
-          return json.rooms;
-        }
-      }
-    } catch {}
-
-    // 2. Thử gọi qua AllOrigins CORS proxy tới gateway Chợ Tốt trực tiếp
+    // Gọi qua AllOrigins CORS proxy tới gateway Chợ Tốt trực tiếp (hoạt động 100% phía client)
     try {
       const targetUrl = `https://gateway.chotot.com/v1/public/ad-listing?region_v2=${regId}&cg=1050&limit=50&o=0`;
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
@@ -4160,6 +4169,7 @@ const goHome = () => {
               goHome={goHome}
               viewRoom={viewRoom}
               selectedCity={selectedCity}
+              onSelectCity={setSelectedCity}
             />
           </motion.div>
         )}
