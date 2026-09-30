@@ -156,8 +156,8 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
                 if (partnerRooms.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            title = "Tin Đăng Đối Tác",
-                            subtitle = "Cập nhật thời gian thực từ Chợ Tốt Nhà, Batdongsan & Phongtro123"
+                            title = "Tin Đăng Từ Chợ Tốt Nhà, Batdongsan & Phongtro123",
+                            subtitle = "Cập nhật thời gian thực tại $selectedCity"
                         )
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -203,8 +203,8 @@ fun HomeScreen(viewModel: MainViewModel, onRoomClick: (Int) -> Unit) {
 
                 item {
                     SectionHeader(
-                        title = "Danh Sách Phòng Mới",
-                        subtitle = "Tin đăng phòng trọ mới nhất tại $selectedCity"
+                        title = "Tất Cả Phòng Trống",
+                        subtitle = "Danh sách phòng trọ còn trống tại $selectedCity"
                     )
                 }
 

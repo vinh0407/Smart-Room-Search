@@ -2786,12 +2786,13 @@ export default function App() {
 
       // Lọc theo nguồn phòng (web tôi vs web ngoài)
       if (filters.source && filters.source !== "all") {
+        const roomSource = (r.source || "local").toLowerCase();
         if (filters.source === "local") {
-          if (r.source && r.source !== "local") return false;
+          if (roomSource !== "local") return false;
         } else if (filters.source === "external") {
-          if (!r.source || r.source === "local") return false;
+          if (roomSource === "local") return false;
         } else {
-          if (r.source !== filters.source) return false;
+          if (roomSource !== filters.source.toLowerCase()) return false;
         }
       }
       if (
@@ -2802,12 +2803,6 @@ export default function App() {
       if (
         filters.status !== "all" &&
         r.status !== filters.status
-      )
-        return false;
-      if (
-        filters.source &&
-        filters.source !== "all" &&
-        r.source !== filters.source
       )
         return false;
       return true;
@@ -3470,10 +3465,10 @@ const goHome = () => {
           {/* External Partners Section */}
           {currentCityRooms.some((r) => r.source && r.source !== "local") && (
             <Section
-              title={`Tin đăng từ Chợ Tốt Nhà & Đối tác (${selectedCity.replace("TP. ", "")})`}
+              title={`Tin đăng từ Chợ Tốt Nhà, Batdongsan & Phongtro123 (${selectedCity.replace("TP. ", "")})`}
               icon={<ExternalLink size={16} className="text-orange-500" />}
               onMore={() => {
-                updateFilter({ source: "all", city: selectedCity });
+                updateFilter({ source: "external", city: selectedCity, district: "Tất cả", ward: "Tất cả" });
                 navigate("/rooms");
               }}
             >
@@ -3637,14 +3632,17 @@ const goHome = () => {
 
           {/* All rooms preview */}
           <Section
-            title="Tất cả phòng trống"
+            title={`Tất cả phòng trống tại ${selectedCity}`}
             icon={
               <Building2 size={16} className="text-primary" />
             }
-            onMore={() => navigate("/rooms")}
+            onMore={() => {
+              updateFilter({ city: selectedCity, district: "Tất cả", ward: "Tất cả" });
+              navigate("/rooms");
+            }}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rooms
+              {currentCityRooms
                 .filter((r) => r.status === "available")
                 .slice(0, 6)
                 .map((r) => (

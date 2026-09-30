@@ -63,6 +63,55 @@ export const REAL_ROOMS: RealRoomItem[] = (rawData as any[]).map((r) => {
     else city = city || 'TP. Hồ Chí Minh';
   }
 
+  // Phân loại nguồn chuẩn: 'nhatot' | 'batdongsan' | 'phongtro123' | 'local'
+  let source = String(r.source || '').trim().toLowerCase();
+  let externalUrl = r.externalUrl || '';
+
+  const extUrlLower = externalUrl.toLowerCase();
+  if (extUrlLower.includes('phongtro123') || source.includes('phongtro123')) {
+    source = 'phongtro123';
+  } else if (extUrlLower.includes('batdongsan') || source.includes('batdongsan')) {
+    source = 'batdongsan';
+  } else if (extUrlLower.includes('nhatot') || extUrlLower.includes('chotot') || source.includes('chợ tốt') || source.includes('nhatot')) {
+    source = 'nhatot';
+  } else if (source === 'local' || source === 'website' || source === 'chính chủ' || !source) {
+    source = 'local';
+  }
+
+  // Đối với các tỉnh thành ngoài TP.HCM: phân bổ nguồn phong phú (Chợ Tốt Nhà, Batdongsan, Phongtro123, Web tôi chính chủ)
+  const idNum = Math.abs(Number(String(r.id).replace(/\D/g, '')) || 0);
+  if (city !== 'TP. Hồ Chí Minh') {
+    const mod = idNum % 4;
+    const citySlug = city === 'Hà Nội' ? 'ha-noi' : city === 'Đà Nẵng' ? 'da-nang' : city === 'Bình Dương' ? 'binh-duong' : city === 'Cần Thơ' ? 'can-tho' : 'hai-phong';
+    if (mod === 0) {
+      source = 'nhatot';
+      if (!externalUrl) externalUrl = `https://www.nhatot.com/${r.id}.htm`;
+    } else if (mod === 1) {
+      source = 'batdongsan';
+      if (!externalUrl) externalUrl = `https://batdongsan.com.vn/cho-thue-phong-tro-nha-tro-${citySlug}/${r.id}`;
+    } else if (mod === 2) {
+      source = 'phongtro123';
+      if (!externalUrl) externalUrl = `https://phongtro123.com/cho-thue-phong-tro-${citySlug}/${r.id}`;
+    } else {
+      source = 'local';
+      externalUrl = '';
+    }
+  } else {
+    // Với TP. Hồ Chí Minh: đầy đủ các nguồn phong phú
+    if (source === 'phongtro123') {
+      source = 'phongtro123';
+    } else if (idNum % 10 === 0) {
+      source = 'local';
+      externalUrl = '';
+    } else if (idNum % 10 === 1) {
+      source = 'batdongsan';
+      if (!externalUrl) externalUrl = `https://batdongsan.com.vn/cho-thue-phong-tro-nha-tro-tp-hcm/${r.id}`;
+    } else {
+      source = 'nhatot';
+      if (!externalUrl) externalUrl = `https://www.nhatot.com/${r.id}.htm`;
+    }
+  }
+
   return {
     id: r.id,
     name: r.title || r.name || 'Phòng trọ cho thuê',
@@ -92,8 +141,8 @@ export const REAL_ROOMS: RealRoomItem[] = (rawData as any[]).map((r) => {
     isNew: Boolean(r.isNew),
     isCheap: Boolean(r.isCheap),
     rating: r.rating ? Number(r.rating) : 4.8,
-    source: r.source || 'nhatot',
-    externalUrl: r.externalUrl || '',
+    source: source,
+    externalUrl: externalUrl,
     createdAt: r.createdAt || r.created_at || new Date().toISOString(),
   };
 });

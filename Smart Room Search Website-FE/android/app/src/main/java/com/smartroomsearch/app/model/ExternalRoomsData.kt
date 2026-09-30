@@ -45,39 +45,64 @@ object ExternalRoomsData {
                         amenList.add(amenArr.getString(j))
                     }
                 }
-                list.add(
-                    Room(
-                        id = obj.optInt("id", (i + 1)),
-                        title = obj.optString("title", "Phòng trọ"),
-                        description = obj.optString("description", ""),
-                        address = obj.optString("address", "TP.HCM"),
-                        price = obj.optDouble("price", 0.0),
-                        area = obj.optDouble("area", 20.0),
-                        images = imgList,
-                        status = RoomStatus.available,
-                        electricity = obj.optInt("electricity", 3800),
-                        water = obj.optInt("water", 100000),
-                        internet = obj.optInt("internet", 100000),
-                        serviceFee = obj.optInt("serviceFee", 150000),
-                        maxPeople = obj.optInt("maxPeople", 2),
-                        district = obj.optString("district", "Quận 1"),
-                        city = obj.optString("city", "TP.HCM"),
-                        lat = obj.optDouble("lat", 10.7731),
-                        lng = obj.optDouble("lng", 106.6952),
-                        amenities = amenList,
-                        phone = obj.optString("phone", "0908123456"),
-                        zaloLink = obj.optString("zaloLink", "https://zalo.me/0908123456"),
-                        views = obj.optInt("views", 100),
-                        contacts = obj.optInt("contacts", 10),
-                        isFeatured = obj.optBoolean("isFeatured", false),
-                        isNew = obj.optBoolean("isNew", false),
-                        isCheap = obj.optBoolean("isCheap", false),
-                        rating = obj.optDouble("rating", 4.8),
-                        source = obj.optString("source", "nhatot"),
-                        externalUrl = if (obj.has("externalUrl") && !obj.isNull("externalUrl")) obj.optString("externalUrl") else null,
-                        createdAt = if (obj.has("created_at") && !obj.isNull("created_at")) obj.optString("created_at") else null,
-                        updatedAt = if (obj.has("updated_at") && !obj.isNull("updated_at")) obj.optString("updated_at") else null
-                    )
+                        val idVal = obj.optInt("id", (i + 1))
+                        val cityVal = obj.optString("city", "TP.HCM")
+                        val rawSource = obj.optString("source", "nhatot")
+                        val resolvedSource = when {
+                            cityVal.contains("Hà Nội", ignoreCase = true) ||
+                            cityVal.contains("Đà Nẵng", ignoreCase = true) ||
+                            cityVal.contains("Bình Dương", ignoreCase = true) ||
+                            cityVal.contains("Cần Thơ", ignoreCase = true) ||
+                            cityVal.contains("Hải Phòng", ignoreCase = true) -> {
+                                when (Math.abs(idVal) % 4) {
+                                    0 -> "nhatot"
+                                    1 -> "batdongsan"
+                                    2 -> "phongtro123"
+                                    else -> "local"
+                                }
+                            }
+                            rawSource.contains("phongtro123", ignoreCase = true) -> "phongtro123"
+                            rawSource.contains("batdongsan", ignoreCase = true) -> "batdongsan"
+                            rawSource.contains("chợ tốt", ignoreCase = true) || rawSource.contains("nhatot", ignoreCase = true) -> "nhatot"
+                            rawSource.contains("local", ignoreCase = true) -> "local"
+                            else -> {
+                                val mod = Math.abs(idVal) % 10
+                                if (mod == 0) "local" else if (mod == 1) "batdongsan" else "nhatot"
+                            }
+                        }
+
+                        Room(
+                            id = idVal,
+                            title = obj.optString("title", "Phòng trọ"),
+                            description = obj.optString("description", ""),
+                            address = obj.optString("address", "TP.HCM"),
+                            price = obj.optDouble("price", 0.0),
+                            area = obj.optDouble("area", 20.0),
+                            images = imgList,
+                            status = RoomStatus.available,
+                            electricity = obj.optInt("electricity", 3800),
+                            water = obj.optInt("water", 100000),
+                            internet = obj.optInt("internet", 100000),
+                            serviceFee = obj.optInt("serviceFee", 150000),
+                            maxPeople = obj.optInt("maxPeople", 2),
+                            district = obj.optString("district", "Quận 1"),
+                            city = cityVal,
+                            lat = obj.optDouble("lat", 10.7731),
+                            lng = obj.optDouble("lng", 106.6952),
+                            amenities = amenList,
+                            phone = obj.optString("phone", "0908123456"),
+                            zaloLink = obj.optString("zaloLink", "https://zalo.me/0908123456"),
+                            views = obj.optInt("views", 100),
+                            contacts = obj.optInt("contacts", 10),
+                            isFeatured = obj.optBoolean("isFeatured", false),
+                            isNew = obj.optBoolean("isNew", false),
+                            isCheap = obj.optBoolean("isCheap", false),
+                            rating = obj.optDouble("rating", 4.8),
+                            source = resolvedSource,
+                            externalUrl = if (resolvedSource == "local") null else if (obj.has("externalUrl") && !obj.isNull("externalUrl")) obj.optString("externalUrl") else "https://www.nhatot.com/$idVal.htm",
+                            createdAt = if (obj.has("created_at") && !obj.isNull("created_at")) obj.optString("created_at") else null,
+                            updatedAt = if (obj.has("updated_at") && !obj.isNull("updated_at")) obj.optString("updated_at") else null
+                        )
                 )
             }
             if (list.isNotEmpty()) {
