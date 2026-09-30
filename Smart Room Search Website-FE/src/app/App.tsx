@@ -65,6 +65,8 @@ import {
   Map,
   ExternalLink,
   Zap,
+  Smartphone,
+  Download,
 } from "lucide-react";
 import {
   AreaChart,
@@ -3201,6 +3203,19 @@ const goHome = () => {
               <ChevronDown size={11} className="text-primary/70 shrink-0" />
             </button>
 
+            {/* Tải App APK */}
+            <a
+              href="https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v2.0.apk"
+              download="SmartRoomSearch-v2.0.apk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden lg:flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 transition-all shadow-sm"
+              title="Tải ứng dụng Android (APK v2.0)"
+            >
+              <Smartphone size={13} className="shrink-0" />
+              <span>Tải App APK</span>
+            </a>
+
             <button
               type="button"
               aria-label="Mở phòng đã thích"
@@ -3301,6 +3316,19 @@ const goHome = () => {
               >
                 Phòng đã thích
               </button>
+              <a
+                href="https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v2.0.apk"
+                download="SmartRoomSearch-v2.0.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenu(false)}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Smartphone size={16} /> Tải App Android (APK v2.0)
+                </span>
+                <span className="text-xs bg-emerald-600 text-white rounded-md px-2 py-0.5 font-semibold">Tải về</span>
+              </a>
             </div>
           </motion.div>
         )}
@@ -3719,13 +3747,12 @@ const goHome = () => {
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Nền tảng tìm phòng trọ nhanh, minh bạch, không
-                qua trung gian tại TP.HCM.
+                Nền tảng tìm kiếm và đăng tin phòng trọ toàn quốc (TP.HCM, Hà Nội, Đà Nẵng,...), cập nhật liên tục từ đối tác và chính chủ.
               </p>
             </div>
             <div>
               <h4 className="font-bold mb-3 text-sm">
-                Liên kết
+                Liên kết & Ứng dụng
               </h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <button
@@ -3749,6 +3776,15 @@ const goHome = () => {
                 >
                   Kiếm phòng ngay
                 </button>
+                <a
+                  href="https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v2.0.apk"
+                  download="SmartRoomSearch-v2.0.apk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
+                  <Smartphone size={14} /> Tải App Android (APK v2.0)
+                </a>
               </div>
             </div>
             <div>
