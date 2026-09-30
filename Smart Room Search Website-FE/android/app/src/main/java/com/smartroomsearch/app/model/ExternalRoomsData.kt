@@ -71,8 +71,9 @@ object ExternalRoomsData {
                             }
                         }
 
-                        Room(
-                            id = idVal,
+                        list.add(
+                            Room(
+                                id = idVal,
                             title = obj.optString("title", "Phòng trọ"),
                             description = obj.optString("description", ""),
                             address = obj.optString("address", "TP.HCM"),

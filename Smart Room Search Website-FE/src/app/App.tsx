@@ -2430,11 +2430,16 @@ export default function App() {
     full_name: "",
     phone: "",
     gender: "",
+    city: selectedCity || "TP. Hồ Chí Minh",
     district: "",
+    ward: "",
     max_price: "",
     people_count: "1",
     note: "",
   });
+  const [demandFilterCity, setDemandFilterCity] = useState("Tất cả");
+  const [demandFilterDistrict, setDemandFilterDistrict] = useState("Tất cả");
+  const [demandFilterWard, setDemandFilterWard] = useState("Tất cả");
   const [demandSubmitting, setDemandSubmitting] = useState(false);
   const [demandError, setDemandError] = useState("");
   const [demandsLoading, setDemandsLoading] = useState(true);
@@ -2461,6 +2466,26 @@ export default function App() {
       setDemandsLoading(false);
     }
   }, []);
+
+  const filteredDemands = useMemo(() => {
+    return demands.filter((d) => {
+      const loc = ((d.district || "") + " " + (d.note || "")).toLowerCase();
+
+      if (demandFilterCity !== "Tất cả") {
+        const cityClean = demandFilterCity.replace("TP. ", "").replace("Thành phố ", "").toLowerCase().trim();
+        if (!loc.includes(cityClean)) return false;
+      }
+      if (demandFilterDistrict !== "Tất cả") {
+        const distClean = demandFilterDistrict.replace(/^quận\s+/i, "").replace(/^huyện\s+/i, "").toLowerCase().trim();
+        if (!loc.includes(distClean)) return false;
+      }
+      if (demandFilterWard !== "Tất cả") {
+        const wardClean = demandFilterWard.replace(/^phường\s+/i, "").replace(/^xã\s+/i, "").toLowerCase().trim();
+        if (!loc.includes(wardClean)) return false;
+      }
+      return true;
+    });
+  }, [demands, demandFilterCity, demandFilterDistrict, demandFilterWard]);
 
   // Dark mode
   useEffect(() => {
@@ -2899,11 +2924,13 @@ export default function App() {
 
   const submitDemand = async (e: React.FormEvent) => {
     e.preventDefault();
+    const locationParts = [demandForm.ward, demandForm.district, demandForm.city].filter(Boolean);
+    const locationStr = locationParts.join(", ") || demandForm.district || null;
     const payload = {
       full_name: demandForm.full_name.trim(),
       phone: demandForm.phone.trim(),
       gender: demandForm.gender || null,
-      district: demandForm.district || null,
+      district: locationStr,
       max_price: Number(demandForm.max_price || 0),
       people_count: Number(demandForm.people_count || 1),
       note: demandForm.note.trim(),
@@ -4337,11 +4364,84 @@ const goHome = () => {
                 </div>
                 <button type="button" onClick={() => setShowDemandListModal(false)} className="rounded-full p-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Đóng danh sách nhu cầu"><X size={18} /></button>
               </div>
+
+              {/* Bộ lọc Tỉnh thành / Quận huyện / Phường cho danh sách nhu cầu */}
+              <div className="mb-3 grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-2xl border border-border bg-muted/40 p-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">Tỉnh / Thành phố</label>
+                  <select
+                    value={demandFilterCity}
+                    onChange={(e) => {
+                      setDemandFilterCity(e.target.value);
+                      setDemandFilterDistrict("Tất cả");
+                      setDemandFilterWard("Tất cả");
+                    }}
+                    className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground font-medium"
+                  >
+                    <option value="Tất cả">Toàn quốc (Tất cả)</option>
+                    {CITIES.map((c) => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">Quận / Huyện</label>
+                  <select
+                    value={demandFilterDistrict}
+                    onChange={(e) => {
+                      setDemandFilterDistrict(e.target.value);
+                      setDemandFilterWard("Tất cả");
+                    }}
+                    className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground font-medium"
+                  >
+                    <option value="Tất cả">Tất cả quận / huyện</option>
+                    {getDistrictsForCity(demandFilterCity === "Tất cả" ? "TP. Hồ Chí Minh" : demandFilterCity)
+                      .filter((d) => d !== "Tất cả")
+                      .map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">Phường / Xã</label>
+                  <select
+                    value={demandFilterWard}
+                    disabled={demandFilterDistrict === "Tất cả"}
+                    onChange={(e) => setDemandFilterWard(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground font-medium disabled:opacity-50"
+                  >
+                    <option value="Tất cả">Tất cả phường / xã</option>
+                    {(getWardsForDistrict(demandFilterDistrict) || []).map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground px-1">
+                <span>Hiển thị <strong>{filteredDemands.length}</strong> nhu cầu</span>
+                {(demandFilterCity !== "Tất cả" || demandFilterDistrict !== "Tất cả" || demandFilterWard !== "Tất cả") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDemandFilterCity("Tất cả");
+                      setDemandFilterDistrict("Tất cả");
+                      setDemandFilterWard("Tất cả");
+                    }}
+                    className="text-primary hover:underline font-semibold"
+                  >
+                    Đặt lại bộ lọc
+                  </button>
+                )}
+              </div>
+
               <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
                 {demandsLoading && <p className="rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">Đang tải nhu cầu...</p>}
                 {demandsError && !demandsLoading && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-sm text-rose-700"><p>{demandsError}</p><button type="button" onClick={loadDemands} className="mt-2 underline">Thử lại</button></div>}
-                {!demandsLoading && !demandsError && demands.length === 0 && <p className="rounded-xl bg-muted p-5 text-center text-sm text-muted-foreground">Chưa có nhu cầu phòng nào.</p>}
-                {!demandsLoading && !demandsError && demands.map((d) => (
+                {!demandsLoading && !demandsError && filteredDemands.length === 0 && <p className="rounded-xl bg-muted p-5 text-center text-sm text-muted-foreground">Chưa có nhu cầu phòng nào phù hợp với bộ lọc.</p>}
+                {!demandsLoading && !demandsError && filteredDemands.map((d) => (
                   <article key={d.id} className="rounded-xl border border-border p-3">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xs font-bold text-primary">{d.district || 'Chưa xác định'}</span>
@@ -4438,10 +4538,55 @@ const goHome = () => {
                     <option value="Nữ">Nữ</option>
                     <option value="Khác">Khác</option>
                   </select></label>
-                  <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground"><span>Khu vực mong muốn</span><select aria-label="Khu vực mong muốn" value={demandForm.district} onChange={(e) => setDemandForm((s) => ({ ...s, district: e.target.value }))} className="rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground sm:text-sm">
-                    <option value="">Khu vực mong muốn</option>
-                    {DISTRICTS.filter((d) => d !== "Tất cả").map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select></label>
+                  {/* Tỉnh / Thành phố */}
+                  <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
+                    <span>Tỉnh / Thành phố <span aria-hidden="true">*</span></span>
+                    <select
+                      aria-label="Tỉnh thành mong muốn"
+                      value={demandForm.city}
+                      onChange={(e) => setDemandForm((s) => ({ ...s, city: e.target.value, district: "", ward: "" }))}
+                      className="rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground sm:text-sm font-medium"
+                    >
+                      {CITIES.map((c) => (
+                        <option key={c.name} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {/* Quận / Huyện */}
+                  <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
+                    <span>Quận / Huyện mong muốn</span>
+                    <select
+                      aria-label="Quận huyện mong muốn"
+                      value={demandForm.district}
+                      onChange={(e) => setDemandForm((s) => ({ ...s, district: e.target.value, ward: "" }))}
+                      className="rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground sm:text-sm font-medium"
+                    >
+                      <option value="">Chọn quận / huyện</option>
+                      {getDistrictsForCity(demandForm.city || "TP. Hồ Chí Minh")
+                        .filter((d) => d !== "Tất cả")
+                        .map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                    </select>
+                  </label>
+
+                  {/* Phường / Xã */}
+                  <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
+                    <span>Phường / Xã mong muốn</span>
+                    <select
+                      aria-label="Phường xã mong muốn"
+                      value={demandForm.ward}
+                      disabled={!demandForm.district}
+                      onChange={(e) => setDemandForm((s) => ({ ...s, ward: e.target.value }))}
+                      className="rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground sm:text-sm font-medium disabled:opacity-50"
+                    >
+                      <option value="">{demandForm.district ? "Chọn phường / xã" : "Chọn quận trước"}</option>
+                      {(getWardsForDistrict(demandForm.district) || []).map((w) => (
+                        <option key={w} value={w}>{w}</option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground"><span>Giá tối đa mỗi tháng</span><input aria-label="Giá mong muốn tối đa" value={demandForm.max_price} onChange={(e) => setDemandForm((s) => ({ ...s, max_price: e.target.value }))} type="number" min="0" inputMode="numeric" placeholder="Ví dụ: 4000000" className="rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground sm:text-sm" /></label>
                   <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground"><span>Số người ở</span><input aria-label="Số người ở" value={demandForm.people_count} onChange={(e) => setDemandForm((s) => ({ ...s, people_count: e.target.value }))} type="number" min="1" inputMode="numeric" placeholder="Ví dụ: 2" className="rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground sm:text-sm" /></label>
                   <label className="sm:col-span-2 flex flex-col gap-1 text-xs font-semibold text-muted-foreground"><span>Ghi chú nhu cầu</span><textarea aria-label="Ghi chú nhu cầu phòng" value={demandForm.note} onChange={(e) => setDemandForm((s) => ({ ...s, note: e.target.value }))} placeholder="Tiện ích hoặc thời gian muốn chuyển vào" rows={4} className="rounded-xl border border-border bg-input-background px-3 py-2 text-base text-foreground sm:text-sm" /></label>

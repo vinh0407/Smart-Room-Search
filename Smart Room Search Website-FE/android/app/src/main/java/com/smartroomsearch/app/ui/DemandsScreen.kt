@@ -22,14 +22,53 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smartroomsearch.app.model.RoomDemand
+import com.smartroomsearch.app.model.LocationsData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DemandsScreen(viewModel: MainViewModel) {
     val demands by viewModel.demands.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val selectedCity by viewModel.selectedCity.collectAsState()
+
+    var selectedCityFilter by remember(selectedCity) { mutableStateOf(selectedCity) }
+    var selectedDistrictFilter by remember { mutableStateOf("Tất cả") }
+    var selectedWardFilter by remember { mutableStateOf("Tất cả") }
+
     var demandToDelete by remember { mutableStateOf<RoomDemand?>(null) }
     var showCreateSheet by remember { mutableStateOf(false) }
+
+    val cityOptions = listOf("Tất cả") + LocationsData.CITIES.map { it.name }
+    val districtOptions = remember(selectedCityFilter) {
+        if (selectedCityFilter == "Tất cả") {
+            LocationsData.ALL_HCM_DISTRICTS
+        } else {
+            LocationsData.getDistrictsForCity(selectedCityFilter)
+        }
+    }
+    val wardOptions = remember(selectedDistrictFilter) {
+        if (selectedDistrictFilter == "Tất cả") emptyList()
+        else listOf("Tất cả") + LocationsData.getWardsForDistrict(selectedDistrictFilter)
+    }
+
+    val filteredDemands = remember(demands, selectedCityFilter, selectedDistrictFilter, selectedWardFilter) {
+        demands.filter { d ->
+            val loc = "${d.district ?: ""} ${d.note ?: ""}".lowercase()
+            val cityMatch = if (selectedCityFilter == "Tất cả") true else {
+                val clean = selectedCityFilter.replace("TP. ", "").replace("Thành phố ", "").lowercase().trim()
+                loc.contains(clean)
+            }
+            val distMatch = if (selectedDistrictFilter == "Tất cả") true else {
+                val clean = selectedDistrictFilter.replace(Regex("^(quận|huyện)\\s+", RegexOption.IGNORE_CASE), "").lowercase().trim()
+                loc.contains(clean)
+            }
+            val wardMatch = if (selectedWardFilter == "Tất cả") true else {
+                val clean = selectedWardFilter.replace(Regex("^(phường|xã)\\s+", RegexOption.IGNORE_CASE), "").lowercase().trim()
+                loc.contains(clean)
+            }
+            cityMatch && distMatch && wardMatch
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -52,29 +91,118 @@ fun DemandsScreen(viewModel: MainViewModel) {
             )
         }
     ) { padding ->
-        if (demands.isEmpty()) {
-            EmptyState(
-                icon = Icons.Default.List,
-                title = "Chưa có nhu cầu nào",
-                description = "Hãy đăng nhu cầu tìm phòng của bạn để chủ trọ có thể liên hệ trực tiếp!",
-                actionLabel = "Đăng nhu cầu ngay",
-                onActionClick = { showCreateSheet = true },
-                modifier = Modifier.padding(padding)
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // Thanh bộ lọc Tỉnh thành / Quận huyện / Phường cho nhu cầu
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                items(demands) { demand ->
-                    DemandCard(
-                        demand = demand,
-                        isAdmin = isLoggedIn,
-                        onDelete = { demandToDelete = demand }
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    // Dòng 1: Chọn Tỉnh / Thành
+                    Text(
+                        text = "Tỉnh / Thành phố",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                     )
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(cityOptions) { c ->
+                            FilterChip(
+                                selected = selectedCityFilter == c,
+                                onClick = {
+                                    selectedCityFilter = c
+                                    selectedDistrictFilter = "Tất cả"
+                                    selectedWardFilter = "Tất cả"
+                                },
+                                label = { Text(if (c == "Tất cả") "Toàn quốc" else c.replace("TP. ", ""), fontSize = 12.sp) }
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // Dòng 2: Chọn Quận / Huyện
+                    Text(
+                        text = "Quận / Huyện",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(districtOptions) { d ->
+                            FilterChip(
+                                selected = selectedDistrictFilter == d,
+                                onClick = {
+                                    selectedDistrictFilter = d
+                                    selectedWardFilter = "Tất cả"
+                                },
+                                label = { Text(d, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+
+                    // Dòng 3: Chọn Phường / Xã (khi đã chọn quận cụ thể)
+                    if (wardOptions.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Phường / Xã",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(wardOptions) { w ->
+                                FilterChip(
+                                    selected = selectedWardFilter == w,
+                                    onClick = { selectedWardFilter = w },
+                                    label = { Text(w, fontSize = 12.sp) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Danh sách bài đăng nhu cầu
+            if (filteredDemands.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Default.List,
+                    title = if (demands.isEmpty()) "Chưa có nhu cầu nào" else "Không tìm thấy nhu cầu phù hợp",
+                    description = if (demands.isEmpty()) "Hãy đăng nhu cầu tìm phòng của bạn để chủ trọ có thể liên hệ trực tiếp!" else "Thử đổi bộ lọc tỉnh thành, quận huyện hoặc phường khác.",
+                    actionLabel = "Đăng nhu cầu ngay",
+                    onActionClick = { showCreateSheet = true },
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(filteredDemands) { demand ->
+                        DemandCard(
+                            demand = demand,
+                            isAdmin = isLoggedIn,
+                            onDelete = { demandToDelete = demand }
+                        )
+                    }
                 }
             }
         }
@@ -213,9 +341,16 @@ fun DemandCard(demand: RoomDemand, isAdmin: Boolean = false, onDelete: () -> Uni
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateDemandSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
+    val currentCity by viewModel.selectedCity.collectAsState()
+    var selectedCity by remember { mutableStateOf(currentCity) }
+    var selectedDistrict by remember(selectedCity) {
+        val dists = LocationsData.getDistrictsForCity(selectedCity).filter { it != "Tất cả" }
+        mutableStateOf(dists.firstOrNull() ?: "Quận 1")
+    }
+    var selectedWard by remember(selectedDistrict) { mutableStateOf("") }
+
     var fullName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    var district by remember { mutableStateOf("Quận 10") }
     var maxPrice by remember { mutableStateOf("") }
     var peopleCount by remember { mutableStateOf("2") }
     var note by remember { mutableStateOf("") }
@@ -223,7 +358,13 @@ fun CreateDemandSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    val districts = listOf("Quận 1", "Quận 3", "Quận 7", "Quận 10", "Bình Thạnh", "Gò Vấp", "Tân Bình", "Phú Nhuận", "Tân Phú")
+    val cityList = LocationsData.CITIES.map { it.name }
+    val districtList = remember(selectedCity) {
+        LocationsData.getDistrictsForCity(selectedCity).filter { it != "Tất cả" }
+    }
+    val wardList = remember(selectedDistrict) {
+        LocationsData.getWardsForDistrict(selectedDistrict)
+    }
 
     fun submit() {
         if (fullName.isBlank() || phone.isBlank()) {
@@ -235,10 +376,17 @@ fun CreateDemandSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
 
         isSubmitting = true
         errorMsg = null
+
+        val fullLocation = listOfNotNull(
+            selectedWard.ifBlank { null },
+            selectedDistrict.ifBlank { null },
+            selectedCity.ifBlank { null }
+        ).joinToString(", ")
+
         viewModel.createDemand(
             fullName = fullName.trim(),
             phone = phone.trim(),
-            district = district,
+            district = fullLocation,
             maxPrice = priceVal,
             peopleCount = peopleVal,
             note = note.trim(),
@@ -315,17 +463,56 @@ fun CreateDemandSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
-            Text("Khu vực mong muốn", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            // Chọn Tỉnh / Thành phố
+            Text("Tỉnh / Thành phố *", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(6.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(districts) { d ->
+                items(cityList) { c ->
                     FilterChip(
-                        selected = district == d,
-                        onClick = { district = d },
+                        selected = selectedCity == c,
+                        onClick = {
+                            selectedCity = c
+                            selectedDistrict = LocationsData.getDistrictsForCity(c).firstOrNull { it != "Tất cả" } ?: ""
+                            selectedWard = ""
+                        },
+                        label = { Text(c.replace("TP. ", ""), fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Chọn Quận / Huyện
+            Text("Quận / Huyện *", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(6.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(districtList) { d ->
+                    FilterChip(
+                        selected = selectedDistrict == d,
+                        onClick = {
+                            selectedDistrict = d
+                            selectedWard = ""
+                        },
                         label = { Text(d, fontSize = 12.sp) }
                     )
+                }
+            }
+
+            // Chọn Phường / Xã
+            if (wardList.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Text("Phường / Xã (tùy chọn)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(6.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(wardList) { w ->
+                        FilterChip(
+                            selected = selectedWard == w,
+                            onClick = { selectedWard = if (selectedWard == w) "" else w },
+                            label = { Text(w, fontSize = 12.sp) }
+                        )
+                    }
                 }
             }
 

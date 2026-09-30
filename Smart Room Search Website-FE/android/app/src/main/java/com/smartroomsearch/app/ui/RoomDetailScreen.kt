@@ -467,22 +467,67 @@ fun RoomDetailScreen(roomId: Int, viewModel: MainViewModel, onBack: () -> Unit) 
                                 factory = { ctx ->
                                     android.webkit.WebView(ctx).apply {
                                         settings.javaScriptEnabled = true
-                                        webViewClient = android.webkit.WebViewClient()
-                                        val escapedTitle = room.title.replace("'", "\\'").replace("\"", "\\\"")
+                                        settings.domStorageEnabled = true
+                                        settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                                        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                        webChromeClient = android.webkit.WebChromeClient()
+                                        webViewClient = object : android.webkit.WebViewClient() {
+                                            override fun onReceivedSslError(
+                                                view: android.webkit.WebView?,
+                                                handler: android.webkit.SslErrorHandler?,
+                                                error: android.net.http.SslError?
+                                            ) {
+                                                handler?.proceed()
+                                            }
+                                        }
+                                        val escapedTitle = room.title
+                                            .replace("\\", "\\\\")
+                                            .replace("'", "\\'")
+                                            .replace("\"", "\\\"")
+                                            .replace("\r", " ")
+                                            .replace("\n", " ")
                                         val html = """
                                             <!DOCTYPE html><html><head>
-                                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-                                            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                                            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                                            <style>body,html,#map{margin:0;padding:0;width:100%;height:100%;}</style>
+                                            <meta charset="utf-8" />
+                                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                                            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+                                            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+                                            <style>body,html,#map{margin:0;padding:0;width:100%;height:100%;background:#f8fafc;}</style>
+                                            <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+                                            <script>
+                                                if (typeof L === 'undefined') {
+                                                    document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\\/script>');
+                                                }
+                                            </script>
                                             </head><body><div id="map"></div>
                                             <script>
-                                            var map = L.map('map', {zoomControl: false}).setView([${room.lat}, ${room.lng}], 15);
-                                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                                            L.marker([${room.lat}, ${room.lng}]).addTo(map).bindPopup("<b>$escapedTitle</b>").openPopup();
+                                            function initMiniMap() {
+                                                if (typeof L === 'undefined') {
+                                                    setTimeout(initMiniMap, 80);
+                                                    return;
+                                                }
+                                                if (window._miniMapReady) return;
+                                                try {
+                                                    var map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([${room.lat}, ${room.lng}], 15);
+                                                    window._miniMapReady = true;
+                                                    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+                                                    L.marker([${room.lat}, ${room.lng}]).addTo(map).bindPopup("<b>$escapedTitle</b>").openPopup();
+                                                    setTimeout(function() { map.invalidateSize(); }, 200);
+                                                    setTimeout(function() { map.invalidateSize(); }, 600);
+                                                } catch(e) {
+                                                    console.error("Mini map error:", e);
+                                                }
+                                            }
+                                            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                                                initMiniMap();
+                                            } else {
+                                                document.addEventListener('DOMContentLoaded', initMiniMap);
+                                                window.addEventListener('load', initMiniMap);
+                                            }
+                                            setTimeout(initMiniMap, 100);
                                             </script></body></html>
                                         """.trimIndent()
-                                        loadDataWithBaseURL("https://openstreetmap.org", html, "text/html", "UTF-8", null)
+                                        loadDataWithBaseURL("https://openstreetmap.org/", html, "text/html", "UTF-8", null)
                                     }
                                 }
                             )

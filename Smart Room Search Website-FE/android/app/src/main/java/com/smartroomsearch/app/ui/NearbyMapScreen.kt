@@ -99,10 +99,15 @@ fun NearbyMapScreen(
 
     var selectedRoomOnMap by remember { mutableStateOf<Room?>(nearbyRooms.firstOrNull()) }
 
-    // Tạo HTML chứa OpenStreetMap (Leaflet.js) - 100% Miễn phí, mượt mà
-    val mapHtml = remember(nearbyRooms) {
+    // Tạo HTML chứa OpenStreetMap (Leaflet.js) - Siêu ổn định, đa CDN, tự khởi chạy khi tải xong
+    val mapHtml = remember(nearbyRooms, userLat, userLng, selectedCity) {
         val markersJs = nearbyRooms.joinToString(",") { r ->
-            val escapedTitle = r.title.replace("'", "\\'").replace("\"", "\\\"").replace("\n", " ")
+            val escapedTitle = r.title
+                .replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\"", "\\\"")
+                .replace("\r", " ")
+                .replace("\n", " ")
             val priceStr = "${DecimalFormat("#,###").format(r.price)} đ"
             """
             {
@@ -119,9 +124,10 @@ fun NearbyMapScreen(
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
             <style>
                 body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #f8fafc; }
                 .price-badge {
@@ -145,48 +151,73 @@ fun NearbyMapScreen(
                     box-shadow: 0 0 10px rgba(37,99,235,0.8);
                 }
             </style>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+            <script>
+                if (typeof L === 'undefined') {
+                    document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\\/script>');
+                }
+            </script>
         </head>
         <body>
             <div id="map"></div>
             <script>
-                try {
-                    var map = L.map('map', { zoomControl: true }).setView([$userLat, $userLng], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        maxZoom: 19,
-                        attribution: '© OpenStreetMap'
-                    }).addTo(map);
-
-                    // User Location Pin
-                    var userIcon = L.divIcon({ className: 'user-pin', iconSize: [14, 14] });
-                    L.marker([$userLat, $userLng], { icon: userIcon }).addTo(map).bindPopup("<b>Vị trí trung tâm ($selectedCity)</b>");
-
-                    var markers = [$markersJs];
-                    if (markers.length > 0) {
-                        var bounds = L.latLngBounds([[$userLat, $userLng]]);
-                        markers.forEach(function(m) {
-                            if (m.lat && m.lng) {
-                                bounds.extend([m.lat, m.lng]);
-                                var badgeIcon = L.divIcon({
-                                    className: 'custom-div-icon',
-                                    html: '<div class="price-badge">' + m.price + '</div>',
-                                    iconSize: [60, 20],
-                                    iconAnchor: [30, 10]
-                                });
-                                var marker = L.marker([m.lat, m.lng], { icon: badgeIcon }).addTo(map);
-                                marker.on('click', function() {
-                                    if (window.AndroidBridge) {
-                                        window.AndroidBridge.onRoomSelected(m.id);
-                                    }
-                                });
-                            }
-                        });
-                        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+                function tryInitMap() {
+                    if (typeof L === 'undefined') {
+                        setTimeout(tryInitMap, 80);
+                        return;
                     }
-                    setTimeout(function() { map.invalidateSize(); }, 300);
-                    setTimeout(function() { map.invalidateSize(); }, 800);
-                } catch(e) {
-                    console.error("Map init error:", e);
+                    if (window._mapReady) return;
+                    try {
+                        var map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([$userLat, $userLng], 13);
+                        window._mapReady = true;
+                        window._leafletMap = map;
+
+                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            maxZoom: 19,
+                            attribution: '© OpenStreetMap'
+                        }).addTo(map);
+
+                        // User Location Pin
+                        var userIcon = L.divIcon({ className: 'user-pin', iconSize: [14, 14] });
+                        L.marker([$userLat, $userLng], { icon: userIcon }).addTo(map).bindPopup("<b>Vị trí trung tâm ($selectedCity)</b>");
+
+                        var markers = [$markersJs];
+                        if (markers.length > 0) {
+                            var bounds = L.latLngBounds([[$userLat, $userLng]]);
+                            markers.forEach(function(m) {
+                                if (m.lat && m.lng) {
+                                    bounds.extend([m.lat, m.lng]);
+                                    var badgeIcon = L.divIcon({
+                                        className: 'custom-div-icon',
+                                        html: '<div class="price-badge">' + m.price + '</div>',
+                                        iconSize: [60, 20],
+                                        iconAnchor: [30, 10]
+                                    });
+                                    var marker = L.marker([m.lat, m.lng], { icon: badgeIcon }).addTo(map);
+                                    marker.on('click', function() {
+                                        if (window.AndroidBridge) {
+                                            window.AndroidBridge.onRoomSelected(m.id);
+                                        }
+                                    });
+                                }
+                            });
+                            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+                        }
+                        setTimeout(function() { if (window._leafletMap) window._leafletMap.invalidateSize(); }, 200);
+                        setTimeout(function() { if (window._leafletMap) window._leafletMap.invalidateSize(); }, 600);
+                        setTimeout(function() { if (window._leafletMap) window._leafletMap.invalidateSize(); }, 1200);
+                    } catch(e) {
+                        console.error("Map init error:", e);
+                    }
                 }
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    tryInitMap();
+                } else {
+                    document.addEventListener('DOMContentLoaded', tryInitMap);
+                    window.addEventListener('load', tryInitMap);
+                }
+                setTimeout(tryInitMap, 100);
+                setTimeout(tryInitMap, 400);
             </script>
         </body>
         </html>
@@ -232,7 +263,16 @@ fun NearbyMapScreen(
                         settings.allowContentAccess = true
                         settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
                         settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                        webViewClient = WebViewClient()
+                        webChromeClient = android.webkit.WebChromeClient()
+                        webViewClient = object : android.webkit.WebViewClient() {
+                            override fun onReceivedSslError(
+                                view: WebView?,
+                                handler: android.webkit.SslErrorHandler?,
+                                error: android.net.http.SslError?
+                            ) {
+                                handler?.proceed()
+                            }
+                        }
                         addJavascriptInterface(object {
                             @JavascriptInterface
                             fun onRoomSelected(roomId: Int) {
@@ -245,13 +285,13 @@ fun NearbyMapScreen(
                             }
                         }, "AndroidBridge")
                         tag = mapHtml
-                        loadDataWithBaseURL("https://openstreetmap.org", mapHtml, "text/html", "UTF-8", null)
+                        loadDataWithBaseURL("https://openstreetmap.org/", mapHtml, "text/html", "UTF-8", null)
                     }
                 },
                 update = { webView ->
                     if (webView.tag != mapHtml) {
                         webView.tag = mapHtml
-                        webView.loadDataWithBaseURL("https://openstreetmap.org", mapHtml, "text/html", "UTF-8", null)
+                        webView.loadDataWithBaseURL("https://openstreetmap.org/", mapHtml, "text/html", "UTF-8", null)
                     }
                 }
             )
