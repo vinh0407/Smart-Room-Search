@@ -309,8 +309,8 @@ export default function RoomMap({
       r.lng <= 180
   );
 
-  // Hiển thị tối đa 120 phòng gần nhất để bản đồ luôn mượt mà không bị giật lag
-  const displayedRooms = validRooms.slice(0, 120);
+  // Hiển thị tối đa 60 phòng gần nhất để bản đồ luôn mượt mà đạt 60 FPS
+  const displayedRooms = validRooms.slice(0, 60);
 
   const center: [number, number] =
     validRooms.length > 0
@@ -330,6 +330,7 @@ export default function RoomMap({
         <MapContainer
           center={center}
           zoom={variant === 'detail' ? 16 : 13}
+          preferCanvas={true}
           style={{ height: '100%', width: '100%', minHeight: '240px' }}
           scrollWheelZoom={variant === 'overview'}
         >

@@ -523,12 +523,8 @@ function RoomCard({
   const status = getStatusInfo(room.status);
   const coverImage = (Array.isArray(room.images) && room.images[0]) || FALLBACK_IMAGE;
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      whileTap={{ scale: 0.995 }}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(23,35,31,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(23,35,31,0.12)]"
+    <article
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg will-change-transform"
     >
       <a
         href={`/rooms/${room.id}`}
@@ -545,12 +541,15 @@ function RoomCard({
             src={coverImage}
             alt={room.name}
             loading="lazy"
+            decoding="async"
+            width="400"
+            height="192"
             onError={(e) => {
               if (e.currentTarget.src !== FALLBACK_IMAGE) {
                 e.currentTarget.src = FALLBACK_IMAGE;
               }
             }}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover/link:scale-105"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover/link:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
@@ -643,11 +642,19 @@ function RoomCard({
       >
         <Heart size={16} fill={isFavorite ? "white" : "none"} />
       </button>
-    </motion.article>
+    </article>
   );
 }
 
-const MemoRoomCard = React.memo(RoomCard);
+const MemoRoomCard = React.memo(RoomCard, (prev, next) => {
+  return (
+    prev.room.id === next.room.id &&
+    prev.isFavorite === next.isFavorite &&
+    prev.distance === next.distance &&
+    prev.room.price === next.room.price &&
+    prev.room.status === next.room.status
+  );
+});
 
 // ═══════════════════════════════════════════════════════
 // IMAGE GALLERY
@@ -2380,9 +2387,14 @@ export default function App() {
   );
   const [rooms, setRooms] = useState<Room[]>(() => EXTERNAL_MOCK_ROOMS);
   const [demands, setDemands] = useState<Demand[]>([]);
-  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsLoading, setRoomsLoading] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [roomsReloadKey, setRoomsReloadKey] = useState(0);
+  const [visibleRoomsCount, setVisibleRoomsCount] = useState(18);
+  const roomsRef = useRef<Room[]>(rooms);
+  useEffect(() => {
+    roomsRef.current = rooms;
+  }, [rooms]);
   const [detailRoom, setDetailRoom] = useState<Room | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -2573,7 +2585,9 @@ export default function App() {
   // Load rooms with live real-time auto-fetch from Chợ Tốt per selectedCity
   useEffect(() => {
     let isMounted = true;
-    setRoomsLoading(true);
+    if (roomsRef.current.length === 0) {
+      setRoomsLoading(true);
+    }
 
     const loadRooms = async () => {
       try {
@@ -2849,7 +2863,7 @@ export default function App() {
   }, []);
 
   const viewRoom = useCallback((id: number | string) => {
-    const found = rooms.find((r) => String(r.id) === String(id))
+    const found = roomsRef.current.find((r) => String(r.id) === String(id))
       || EXTERNAL_MOCK_ROOMS.find((r) => String(r.id) === String(id));
     if (found) {
       setDetailRoom(found);
@@ -2858,12 +2872,12 @@ export default function App() {
     navigate(`/rooms/${id}`);
     setShowFilters(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [rooms, navigate]);
+  }, [navigate]);
 
   const toggleFavorite = useCallback((id: number | string) => {
-    const roomName = rooms.find((room) => String(room.id) === String(id))?.name || "phòng này";
-    const wasFavorite = favorites.has(id as any) || favorites.has(Number(id)) || favorites.has(String(id));
+    let wasFavorite = false;
     setFavorites((prev) => {
+      wasFavorite = prev.has(id as any) || prev.has(Number(id)) || prev.has(String(id));
       const next = new Set(prev);
       if (wasFavorite) {
         next.delete(id as any);
@@ -2874,9 +2888,14 @@ export default function App() {
       }
       return next;
     });
+    const roomName = roomsRef.current.find((room) => String(room.id) === String(id))?.name || "phòng này";
     setFavoriteNotice(wasFavorite ? `Đã bỏ lưu ${roomName}` : `Đã lưu ${roomName}`);
     window.setTimeout(() => setFavoriteNotice(""), 1800);
-  }, [favorites, rooms]);
+  }, []);
+
+  useEffect(() => {
+    setVisibleRoomsCount(18);
+  }, [filters, selectedCity, sortOption]);
 
   const submitDemand = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3475,13 +3494,14 @@ const goHome = () => {
               <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
                 {currentCityRooms
                   .filter((r) => r.source && r.source !== "local")
+                  .slice(0, 8)
                   .map((r) => (
                     <div key={r.id} className="w-72 shrink-0">
                       <MemoRoomCard
                         room={r}
                         onView={viewRoom}
                         onToggleFavorite={toggleFavorite}
-                        isFavorite={favorites.has(r.id)}
+                        isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
                         distance={distances[r.id]}
                       />
                     </div>
@@ -3513,7 +3533,7 @@ const goHome = () => {
                     room={r}
                     onView={viewRoom}
                     onToggleFavorite={toggleFavorite}
-                    isFavorite={favorites.has(r.id)}
+                    isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
                     distance={distances[r.id]}
                   />
                 ))}
@@ -3565,7 +3585,7 @@ const goHome = () => {
                       room={r}
                       onView={viewRoom}
                       onToggleFavorite={toggleFavorite}
-                      isFavorite={favorites.has(r.id)}
+                      isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
                       distance={distances[r.id]}
                     />
                   ))}
@@ -3584,13 +3604,13 @@ const goHome = () => {
               onMore={() => navigate("/rooms")}
             >
               <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
-                {newRooms.map((r) => (
+                {newRooms.slice(0, 8).map((r) => (
                   <div key={r.id} className="w-72 shrink-0">
                     <MemoRoomCard
                       room={r}
                       onView={viewRoom}
                       onToggleFavorite={toggleFavorite}
-                      isFavorite={favorites.has(r.id)}
+                      isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
                       distance={distances[r.id]}
                     />
                   </div>
@@ -3615,13 +3635,13 @@ const goHome = () => {
               }}
             >
               <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
-                {cheapRooms.map((r) => (
+                {cheapRooms.slice(0, 8).map((r) => (
                   <div key={r.id} className="w-72 shrink-0">
                     <MemoRoomCard
                       room={r}
                       onView={viewRoom}
                       onToggleFavorite={toggleFavorite}
-                      isFavorite={favorites.has(r.id)}
+                      isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
                       distance={distances[r.id]}
                     />
                   </div>
@@ -3651,7 +3671,7 @@ const goHome = () => {
                     room={r}
                     onView={viewRoom}
                     onToggleFavorite={toggleFavorite}
-                    isFavorite={favorites.has(r.id)}
+                    isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
                     distance={distances[r.id]}
                   />
                 ))}
@@ -3987,22 +4007,36 @@ const goHome = () => {
                 </button>
               </div>
             ) : (
-              <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
-              >
-                <AnimatePresence>
-                  {sortedFilteredRooms.map((r) => (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {sortedFilteredRooms.slice(0, visibleRoomsCount).map((r) => (
                     <MemoRoomCard
                       key={r.id}
                       room={r}
                       onView={viewRoom}
                       onToggleFavorite={toggleFavorite}
-                      isFavorite={favorites.has(r.id)}
+                      isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
                       distance={distances[r.id]}
                     />
                   ))}
-                </AnimatePresence>
-              </motion.div>
+                </div>
+
+                {visibleRoomsCount < sortedFilteredRooms.length && (
+                  <div className="flex flex-col items-center justify-center pt-4 pb-8 text-center">
+                    <p className="text-xs text-muted-foreground mb-3 font-medium">
+                      Đang hiển thị {Math.min(visibleRoomsCount, sortedFilteredRooms.length)} / {sortedFilteredRooms.length} phòng
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setVisibleRoomsCount((prev) => prev + 18)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-md hover:brightness-105 active:scale-95 transition-all"
+                    >
+                      <Plus size={16} />
+                      <span>Xem thêm phòng ({sortedFilteredRooms.length - visibleRoomsCount} phòng còn lại)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           </main>
