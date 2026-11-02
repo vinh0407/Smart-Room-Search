@@ -3,9 +3,7 @@ import axios from 'axios';
 export function normalizeApiBase(url: string | undefined): string {
   const raw = String(url || '').trim().replace(/\/+$/, '');
   if (!raw) {
-    return import.meta.env.PROD
-      ? 'https://smart-room-api.smart-room-backend.workers.dev/api'
-      : '/api';
+    return '/api';
   }
   return /\/api$/i.test(raw) ? raw : `${raw}/api`;
 }

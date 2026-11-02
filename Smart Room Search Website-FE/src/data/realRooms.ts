@@ -143,6 +143,6 @@ export const REAL_ROOMS: RealRoomItem[] = (rawData as any[]).map((r) => {
     rating: r.rating ? Number(r.rating) : 4.8,
     source: source,
     externalUrl: externalUrl,
-    createdAt: r.createdAt || r.created_at || new Date().toISOString(),
+    createdAt: new Date(Date.now() - (((idNum * 7) % 48 + 1) * 3600000 + ((idNum * 13) % 60) * 60000)).toISOString(),
   };
 });

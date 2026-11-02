@@ -93,17 +93,21 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
             try {
                 // Immediately display 600 real rooms so UI is populated without network delay
                 val assetRooms = ExternalRoomsData.loadRoomsFromAssets()
-                if (assetRooms.isNotEmpty()) {
-                    _rooms.value = assetRooms
-                }
+                val roomMap = assetRooms.associateBy { it.id }.toMutableMap()
+                _rooms.value = roomMap.values.sortedByDescending { it.createdAt }
 
                 val externalRooms = ExternalRoomsData.fetchLiveRooms(_selectedCity.value)
-                val roomResponse = repository.getRooms()
-                val apiRooms = if (roomResponse.isSuccessful) roomResponse.body() ?: emptyList() else emptyList()
-                
-                val apiIds = apiRooms.map { it.id }.toSet()
-                val combined = apiRooms + externalRooms.filter { !apiIds.contains(it.id) }
-                _rooms.value = combined
+                for (room in externalRooms) {
+                    roomMap[room.id] = room
+                }
+
+                val roomResponse = try { repository.getRooms() } catch (e: Exception) { null }
+                val apiRooms = if (roomResponse != null && roomResponse.isSuccessful) roomResponse.body() ?: emptyList() else emptyList()
+                for (room in apiRooms) {
+                    roomMap[room.id] = room
+                }
+
+                _rooms.value = roomMap.values.sortedByDescending { it.createdAt }
 
                 val demandResponse = repository.getDemands()
                 if (demandResponse.isSuccessful) {

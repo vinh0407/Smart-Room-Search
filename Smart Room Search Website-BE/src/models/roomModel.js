@@ -148,7 +148,7 @@ export const getAllRooms = async (filters = {}) => {
     return combined.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }
 
-  if ((!isReady || isMockMode || !pool) && !isWorkers) {
+  if (!isReady || isMockMode || !pool) {
     let result = await syncMockRoomsCoordinates(getRooms());
 
     if (filters.status && filters.status !== 'all') {
@@ -284,7 +284,7 @@ export const getRoomById = async (id) => {
     return getExternalRoomById(id);
   }
 
-  if ((!isReady || isMockMode || !pool) && !isWorkers) {
+  if (!isReady || isMockMode || !pool) {
     const raw = getRooms().find((room) => String(room.id) === String(id));
     if (!raw) return getExternalRoomById(id);
     const { room: fixed, changed } = await resolveRoomCoordinates(mapRow(raw));
@@ -304,7 +304,7 @@ export const getRoomById = async (id) => {
 };
 
 export const createRoom = async (roomData) => {
-  const isLocalStore = (!isReady || isMockMode || !pool) && !isWorkers;
+  const isLocalStore = !isReady || isMockMode || !pool;
   const rooms = isLocalStore ? getRooms() : null;
   const nextId = isLocalStore && rooms.length > 0 ? Math.max(...rooms.map((r) => r.id)) + 1 : null;
 
@@ -487,7 +487,7 @@ export const updateRoom = async (id, roomData) => {
     return getRoomById(roomId);
   }
 
-  if ((!isReady || isMockMode || !pool) && !isWorkers) {
+  if (!isReady || isMockMode || !pool) {
     const rooms = getRooms();
     const index = rooms.findIndex((room) => room.id === roomId);
     if (index === -1) return null;
@@ -609,7 +609,7 @@ export const deleteRoom = async (id) => {
     return deleted;
   }
 
-  if ((!isReady || isMockMode || !pool) && !isWorkers) {
+  if (!isReady || isMockMode || !pool) {
     const rooms = getRooms();
     const index = rooms.findIndex((room) => room.id === roomId);
     if (index === -1) return null;
@@ -656,7 +656,7 @@ export const updateRoomStatus = async (id, status) => {
     return getRoomById(roomId);
   }
 
-  if ((!isReady || isMockMode || !pool) && !isWorkers) {
+  if (!isReady || isMockMode || !pool) {
     const rooms = getRooms();
     const index = rooms.findIndex((room) => room.id === roomId);
     if (index === -1) return null;
@@ -684,7 +684,7 @@ const incrementCounter = async (id, column) => {
     return true;
   }
 
-  if ((!isReady || isMockMode || !pool) && !isWorkers) {
+  if (!isReady || isMockMode || !pool) {
     const rooms = getRooms();
     const index = rooms.findIndex((room) => room.id === roomId);
     if (index === -1) return false;

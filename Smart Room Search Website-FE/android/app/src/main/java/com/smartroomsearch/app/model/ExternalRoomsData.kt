@@ -71,6 +71,9 @@ object ExternalRoomsData {
                             }
                         }
 
+                        val nowTime = System.currentTimeMillis()
+                        val hoursAgo = ((Math.abs(idVal) * 7) % 48) + 1
+                        val dynamicDate = isoFormat.format(Date(nowTime - hoursAgo * 3600000L))
                         list.add(
                             Room(
                                 id = idVal,
@@ -101,8 +104,8 @@ object ExternalRoomsData {
                             rating = obj.optDouble("rating", 4.8),
                             source = resolvedSource,
                             externalUrl = if (resolvedSource == "local") null else if (obj.has("externalUrl") && !obj.isNull("externalUrl")) obj.optString("externalUrl") else "https://www.nhatot.com/$idVal.htm",
-                            createdAt = if (obj.has("created_at") && !obj.isNull("created_at")) obj.optString("created_at") else null,
-                            updatedAt = if (obj.has("updated_at") && !obj.isNull("updated_at")) obj.optString("updated_at") else null
+                            createdAt = dynamicDate,
+                            updatedAt = dynamicDate
                         )
                 )
             }
@@ -123,6 +126,84 @@ object ExternalRoomsData {
      */
     suspend fun fetchLiveRooms(targetCity: String = "TP. Hồ Chí Minh"): List<Room> = withContext(Dispatchers.IO) {
         try {
+            // 1. Uu tien fetch truc tiep tu Vercel Serverless Live API
+            try {
+                val encCity = java.net.URLEncoder.encode(targetCity, "UTF-8")
+                val vercelUrl = URL("https://smart-room-search.vercel.app/api/rooms/live?city=$encCity&limit=50")
+                val vConn = vercelUrl.openConnection() as HttpURLConnection
+                vConn.requestMethod = "GET"
+                vConn.setRequestProperty("Accept", "application/json")
+                vConn.connectTimeout = 4000
+                vConn.readTimeout = 4000
+                if (vConn.responseCode == 200) {
+                    val vReader = BufferedReader(InputStreamReader(vConn.inputStream))
+                    val vText = vReader.readText()
+                    vReader.close()
+                    val arr = JSONArray(vText)
+                    if (arr.length() > 0) {
+                        val vercelRooms = mutableListOf<Room>()
+                        for (i in 0 until arr.length()) {
+                            val rObj = arr.getJSONObject(i)
+                            val id = rObj.optInt("id", (i + 1))
+                            val imgList = mutableListOf<String>()
+                            val imgArr = rObj.optJSONArray("images")
+                            if (imgArr != null) {
+                                for (j in 0 until imgArr.length()) {
+                                    val u = imgArr.optString(j)
+                                    if (u.isNotBlank()) imgList.add(u)
+                                }
+                            }
+                            val amenList = mutableListOf<String>()
+                            val amenArr = rObj.optJSONArray("amenities")
+                            if (amenArr != null) {
+                                for (j in 0 until amenArr.length()) {
+                                    amenList.add(amenArr.optString(j))
+                                }
+                            }
+                            vercelRooms.add(
+                                Room(
+                                    id = id,
+                                    title = rObj.optString("title", "Phòng trọ"),
+                                    description = rObj.optString("description", ""),
+                                    address = rObj.optString("address", targetCity),
+                                    price = rObj.optDouble("price", 0.0),
+                                    area = rObj.optDouble("area", 25.0),
+                                    images = imgList,
+                                    status = RoomStatus.available,
+                                    electricity = rObj.optInt("electricity", 3800),
+                                    water = rObj.optInt("water", 100000),
+                                    internet = rObj.optInt("internet", 100000),
+                                    serviceFee = rObj.optInt("serviceFee", 150000),
+                                    maxPeople = rObj.optInt("maxPeople", 2),
+                                    district = rObj.optString("district", "Quận 1"),
+                                    city = rObj.optString("city", targetCity),
+                                    lat = rObj.optDouble("lat", 10.7769),
+                                    lng = rObj.optDouble("lng", 106.7009),
+                                    amenities = if (amenList.isNotEmpty()) amenList else listOf("Wifi tốc độ cao", "Camera an ninh"),
+                                    phone = rObj.optString("phone", "0908123456"),
+                                    zaloLink = rObj.optString("zaloLink", "https://zalo.me/0908123456"),
+                                    views = rObj.optInt("views", 200),
+                                    contacts = rObj.optInt("contacts", 15),
+                                    isFeatured = true,
+                                    isNew = true,
+                                    isCheap = rObj.optBoolean("isCheap", false),
+                                    rating = rObj.optDouble("rating", 4.8),
+                                    source = rObj.optString("source", "nhatot"),
+                                    externalUrl = rObj.optString("externalUrl", "https://www.nhatot.com/$id.htm"),
+                                    createdAt = rObj.optString("createdAt", rObj.optString("created_at")),
+                                    updatedAt = rObj.optString("updatedAt", rObj.optString("updated_at"))
+                                )
+                            )
+                        }
+                        if (vercelRooms.isNotEmpty()) {
+                            return@withContext vercelRooms
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // fallback qua gateway.chotot.com
+            }
+
             val regId = when {
                 targetCity.contains("Hà Nội", ignoreCase = true) -> 12000
                 targetCity.contains("Đà Nẵng", ignoreCase = true) -> 3017
