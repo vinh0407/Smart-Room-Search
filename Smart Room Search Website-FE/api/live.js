@@ -48,13 +48,14 @@ export default async function handler(request) {
     const targetUrl = `https://gateway.chotot.com/v1/public/ad-listing?region_v2=${regId}&cg=1050&limit=${limit}&o=0`;
     const response = await fetch(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'User-Agent': 'okhttp/4.9.2',
         'Accept': 'application/json',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Upstream returned ${response.status}`);
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Upstream returned ${response.status}: ${errText.slice(0, 300)}`);
     }
 
     const data = await response.json();
