@@ -78,4 +78,36 @@ describe('Locations & Filtering features', () => {
     const phongTro123Rooms = EXTERNAL_MOCK_ROOMS.filter((r) => r.source === 'phongtro123');
     expect(phongTro123Rooms.length).toBeGreaterThan(0);
   });
+
+  it('can render DetailPage with room 134958480 without crashing', async () => {
+    const { renderToString } = await import('react-dom/server');
+    const React = await import('react');
+    const { MemoryRouter } = await import('react-router');
+    const { DetailPage } = await import('./App');
+    const targetRoom = EXTERNAL_MOCK_ROOMS.find((r) => String(r.id) === '134958480')!;
+    expect(targetRoom).toBeDefined();
+
+    expect(() => {
+      renderToString(
+        React.createElement(
+          MemoryRouter,
+          null,
+          React.createElement(DetailPage, {
+            room: targetRoom,
+            distances: {},
+            favorites: new Set(),
+            toggleFavorite: () => {},
+            goHome: () => {},
+            navigate: () => {},
+            userLocation: null,
+            requestLocation: () => {},
+            handleContact: () => {},
+            contactedRooms: new Set(),
+            rooms: EXTERNAL_MOCK_ROOMS,
+            viewRoom: () => {},
+          })
+        )
+      );
+    }).not.toThrow();
+  });
 });

@@ -357,14 +357,17 @@ export const EXTERNAL_MOCK_ROOMS: Room[] = REAL_ROOMS as unknown as Room[];
 // ═══════════════════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════════════════
-const formatPrice = (price: number) => {
-  if (price >= 1000000)
-    return `${(price / 1000000).toFixed(1).replace(".0", "")}tr`;
-  return `${(price / 1000).toFixed(0)}k`;
+const formatPrice = (price: number | undefined | null) => {
+  const p = Number(price) || 0;
+  if (p >= 1000000)
+    return `${(p / 1000000).toFixed(1).replace(".0", "")}tr`;
+  return `${(p / 1000).toFixed(0)}k`;
 };
 
-const formatPriceFull = (price: number) =>
-  price.toLocaleString("vi-VN") + " đ";
+const formatPriceFull = (price: number | undefined | null) => {
+  const p = Number(price) || 0;
+  return p.toLocaleString("vi-VN") + " đ";
+};
 
 const toOptionalNumber = (val: unknown): number | undefined => {
   if (val == null || val === "") return undefined;
@@ -530,14 +533,19 @@ function RoomCard({
     <article
       className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg will-change-transform"
     >
-      <a
-        href={`/rooms/${room.id}`}
+      {/* Clickable Card Body (div with role=button to avoid nesting <a> inside <a>) */}
+      <div
+        role="button"
+        tabIndex={0}
         aria-label={`Xem chi tiết ${room.name}`}
-        onClick={(event) => {
-          event.preventDefault();
-          onView(room.id);
+        onClick={() => onView(room.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onView(room.id);
+          }
         }}
-        className="group/link flex min-h-full flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+        className="group/link flex min-h-full flex-1 flex-col outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary text-left"
       >
         {/* Image */}
         <div className="relative h-48 overflow-hidden bg-muted">
@@ -633,58 +641,63 @@ function RoomCard({
             <RatingStars rating={room.rating} />
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Eye size={10} /> {room.views}</span>
           </div>
+        </div>
+      </div>
 
-          {/* Nút hành động trực tiếp: Vào Chợ Tốt */}
-          <div className="mt-2 flex items-center justify-end gap-1.5 pt-1">
-            {room.source === "nhatot" ? (
+      {/* Action Bar (Nằm ngoài link click chi tiết, các thẻ <a> hoàn toàn hợp lệ) */}
+      <div className="flex items-center justify-between gap-1.5 border-t border-border bg-card/60 px-4 py-2 z-10">
+        <button
+          type="button"
+          onClick={() => onView(room.id)}
+          className="text-[11px] font-bold text-primary hover:underline"
+        >
+          Chi tiết phòng &rarr;
+        </button>
+        <div>
+          {room.source === "nhatot" ? (
+            <a
+              href={room.externalUrl || `https://www.nhatot.com/${room.id}.htm`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
+              title="Mở bài đăng trực tiếp trên Chợ Tốt Nhà"
+            >
+              <ExternalLink size={10} /> Vào Chợ Tốt
+            </a>
+          ) : room.source === "phongtro123" ? (
+            <div className="flex items-center gap-1.5">
               <a
-                href={room.externalUrl || `https://www.nhatot.com/${room.id}.htm`}
+                href={room.externalUrl || "https://phongtro123.com"}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
-                title="Mở bài đăng trực tiếp trên Chợ Tốt Nhà"
+                className="inline-flex items-center gap-1 rounded-lg border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 px-2 py-1 text-[11px] font-bold text-teal-700 dark:text-teal-400 transition-colors shadow-sm"
+                title="Mở bài đăng gốc trên Phongtro123"
               >
-                <ExternalLink size={10} /> Vào Chợ Tốt
+                <ExternalLink size={10} /> Bài gốc
               </a>
-            ) : room.source === "phongtro123" ? (
-              <div className="flex items-center gap-1.5">
-                <a
-                  href={room.externalUrl || "https://phongtro123.com"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 rounded-lg border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 px-2 py-1 text-[11px] font-bold text-teal-700 dark:text-teal-400 transition-colors shadow-sm"
-                  title="Mở bài đăng gốc trên Phongtro123"
-                >
-                  <ExternalLink size={10} /> Bài gốc
-                </a>
-                <a
-                  href={`https://www.chotot.com/tags/thue-phong-tro?q=${encodeURIComponent(room.district || room.city || '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
-                  title="Tìm phòng tương tự trên Chợ Tốt Nhà"
-                >
-                  <ExternalLink size={10} /> Vào Chợ Tốt
-                </a>
-              </div>
-            ) : (
               <a
                 href={`https://www.chotot.com/tags/thue-phong-tro?q=${encodeURIComponent(room.district || room.city || '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
-                title="Xem phòng khu vực này trên Chợ Tốt Nhà"
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
+                title="Tìm phòng tương tự trên Chợ Tốt Nhà"
               >
                 <ExternalLink size={10} /> Vào Chợ Tốt
               </a>
-            )}
-          </div>
+            </div>
+          ) : (
+            <a
+              href={`https://www.chotot.com/tags/thue-phong-tro?q=${encodeURIComponent(room.district || room.city || '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
+              title="Xem phòng khu vực này trên Chợ Tốt Nhà"
+            >
+              <ExternalLink size={10} /> Vào Chợ Tốt
+            </a>
+          )}
         </div>
-      </a>
+      </div>
 
       {/* Favorite stays outside the link so the two actions remain independent. */}
       <button
@@ -1280,7 +1293,7 @@ interface DetailPageProps {
   viewRoom: (id: number | string) => void;
 }
 
-function DetailPage({
+export function DetailPage({
   room,
   distances,
   favorites,
