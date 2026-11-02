@@ -6,7 +6,7 @@
 
 import { createHash } from 'node:crypto';
 
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 3500;
 
 // Cấu hình lấy từ env bindings (Cloudflare) hoặc process.env (Node local).
 let envConfig = null;

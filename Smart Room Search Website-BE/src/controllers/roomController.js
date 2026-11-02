@@ -1,5 +1,6 @@
 import { isMockMode } from '../config/db.js';
 import { clearRoomsCache } from '../middleware/cacheMiddleware.js';
+import { fetchLiveRoomsByCity } from '../services/externalRoomsService.js';
 import {
   getAllRooms,
   getRoomById,
@@ -23,6 +24,19 @@ export const listRooms = async (req, res) => {
   } catch (error) {
     console.error('[rooms] list failed:', error);
     return res.status(500).json({ message: 'Lỗi khi lấy danh sách phòng' });
+  }
+};
+
+export const getLiveRooms = async (req, res) => {
+  try {
+    const { city = 'TP. Hồ Chí Minh', limit = 50 } = req.query;
+    const rooms = await fetchLiveRoomsByCity(city, Number(limit));
+    res.set('X-Last-Modified', String(roomsLastModified));
+    res.set('Cache-Control', 'public, max-age=30, s-maxage=60');
+    return res.status(200).json(rooms);
+  } catch (error) {
+    console.error('[rooms] live rooms failed:', error);
+    return res.status(200).json([]);
   }
 };
 

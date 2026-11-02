@@ -614,6 +614,120 @@ export const fetchExternalRooms = async (filters = {}) => {
   return rooms;
 };
 
+export const CHOTOT_REGIONS = {
+  'TP. Hồ Chí Minh': 13000,
+  'Hồ Chí Minh': 13000,
+  'TP.HCM': 13000,
+  'Hà Nội': 12000,
+  'Đà Nẵng': 3017,
+  'Bình Dương': 2011,
+  'Cần Thơ': 5027,
+  'Hải Phòng': 4019,
+  'Đồng Nai': 2015,
+};
+
+/**
+ * Fetch fresh real-time listings directly from Chợ Tốt Gateway for any given city.
+ * Operates server-side without CORS limitations or third-party proxy blocks.
+ */
+export const fetchLiveRoomsByCity = async (cityName = 'TP. Hồ Chí Minh', limit = 50) => {
+  let regId = 13000;
+  for (const [c, id] of Object.entries(CHOTOT_REGIONS)) {
+    if (cityName.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(cityName.toLowerCase())) {
+      regId = id;
+      break;
+    }
+  }
+
+  try {
+    const url = `https://gateway.chotot.com/v1/public/ad-listing?region_v2=${regId}&cg=1050&limit=${limit}&o=0`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
+        Accept: 'application/json',
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const ads = data.ads || [];
+      const rooms = [];
+
+      for (const ad of ads) {
+        if (!ad.list_id || !ad.price || ad.price <= 0) continue;
+        if (!ad.images || ad.images.length === 0) continue;
+
+        const cleanCity = ad.region_name || cityName;
+        const district = cleanDistrictName(ad.area_name);
+        const street = ad.street_name ? `${ad.street_name}, ` : '';
+        const ward = ad.ward_name ? `${ad.ward_name}, ` : '';
+        const fullAddress = `${street}${ward}${ad.area_name || cleanCity}, ${cleanCity}`;
+
+        const amenities = ['Wifi'];
+        const text = (ad.subject + ' ' + (ad.body || '')).toLowerCase();
+        if (text.includes('máy lạnh') || text.includes('điều hòa')) amenities.push('Máy lạnh');
+        if (text.includes('gác') || text.includes('duplex')) amenities.push('Gác xép');
+        if (text.includes('tủ lạnh')) amenities.push('Tủ lạnh');
+        if (text.includes('máy giặt')) amenities.push('Máy giặt');
+        if (text.includes('ban công') || text.includes('cửa sổ')) amenities.push('Ban công');
+        if (text.includes('bếp') || text.includes('kệ bếp')) amenities.push('Khu bếp riêng');
+        if (text.includes('xe') || text.includes('bãi xe')) amenities.push('Chỗ để xe');
+        if (text.includes('tự do') || text.includes('không chung chủ')) amenities.push('Giờ giấc tự do');
+
+        const roomObj = {
+          id: Number(ad.list_id),
+          title: `[Chợ Tốt Nhà] ${ad.subject}`,
+          description: ad.body || ad.subject,
+          address: fullAddress,
+          district: district,
+          city: cleanCity,
+          price: Number(ad.price),
+          area: Number(ad.size) || 25,
+          images: ad.images.filter((img) => img && img.startsWith('http')),
+          status: 'available',
+          electricity: 3800,
+          water: 100000,
+          internet: 100000,
+          serviceFee: 150000,
+          maxPeople: 2,
+          lat: Number(ad.latitude) || (cleanCity.includes('Hà Nội') ? 21.0285 : cleanCity.includes('Đà Nẵng') ? 16.0544 : 10.7769),
+          lng: Number(ad.longitude) || (cleanCity.includes('Hà Nội') ? 105.8542 : cleanCity.includes('Đà Nẵng') ? 108.2022 : 106.7009),
+          amenities,
+          phone: ad.phone || '0908123456',
+          zaloLink: `https://zalo.me/${ad.phone || '0908123456'}`,
+          views: Math.floor(Math.random() * 400) + 150,
+          contacts: Math.floor(Math.random() * 40) + 10,
+          isFeatured: true,
+          isNew: true,
+          isCheap: Number(ad.price) <= 3000000,
+          rating: 4.8,
+          source: 'nhatot',
+          externalUrl: `https://www.nhatot.com/${ad.list_id}.htm`,
+          created_at: new Date(ad.orig_list_time || ad.list_time || Date.now()).toISOString(),
+          updated_at: new Date(ad.list_time || Date.now()).toISOString(),
+        };
+
+        rooms.push(roomObj);
+
+        const existingIdx = activeExternalRoomsPool.findIndex((r) => String(r.id) === String(roomObj.id));
+        if (existingIdx >= 0) {
+          activeExternalRoomsPool[existingIdx] = roomObj;
+        } else {
+          activeExternalRoomsPool.unshift(roomObj);
+        }
+      }
+
+      if (rooms.length > 0) {
+        return rooms;
+      }
+    }
+  } catch (err) {
+    console.warn(`[externalRooms] Live fetch for ${cityName} failed:`, err.message);
+  }
+
+  return fetchExternalRooms({ city: cityName });
+};
+
 /**
  * Find single external room by ID.
  * Returns null (404) if the owner removed the listing.

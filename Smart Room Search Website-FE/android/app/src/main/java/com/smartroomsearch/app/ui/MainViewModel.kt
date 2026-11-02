@@ -8,6 +8,8 @@ import com.smartroomsearch.app.model.*
 import com.smartroomsearch.app.repository.SmartRoomRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
 
@@ -43,10 +45,37 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
 
     fun selectCity(city: String) {
         _selectedCity.value = city
+        refreshLiveRooms(city)
+    }
+
+    fun refreshLiveRooms(targetCity: String? = null) {
+        viewModelScope.launch {
+            try {
+                val city = targetCity ?: _selectedCity.value
+                val newLive = ExternalRoomsData.fetchLiveRooms(city)
+                if (newLive.isNotEmpty()) {
+                    val current = _rooms.value
+                    val currentMap = current.associateBy { it.id }.toMutableMap()
+                    for (room in newLive) {
+                        currentMap[room.id] = room
+                    }
+                    _rooms.value = currentMap.values.sortedByDescending { it.createdAt }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     init {
         loadPublicData()
+        // Tự động làm mới và cập nhật bài đăng mới định kỳ mỗi 45 giây
+        viewModelScope.launch {
+            while (isActive) {
+                delay(45000L)
+                refreshLiveRooms()
+            }
+        }
         RetrofitClient.getToken()?.let { saved ->
             _token.value = saved
             _isLoggedIn.value = true
@@ -68,7 +97,7 @@ class MainViewModel(private val repository: SmartRoomRepository) : ViewModel() {
                     _rooms.value = assetRooms
                 }
 
-                val externalRooms = ExternalRoomsData.fetchLiveRooms()
+                val externalRooms = ExternalRoomsData.fetchLiveRooms(_selectedCity.value)
                 val roomResponse = repository.getRooms()
                 val apiRooms = if (roomResponse.isSuccessful) roomResponse.body() ?: emptyList() else emptyList()
                 

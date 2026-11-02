@@ -124,18 +124,28 @@ const syncRoomCoords = async (row) => {
 
 export const getAllRooms = async (filters = {}) => {
   if (isDataService()) {
-    const params = {};
-    if (filters.status && filters.status !== 'all') params.status = filters.status;
-    if (filters.district && filters.district !== 'Tất cả') params.district = filters.district;
-    if (filters.priceMin !== undefined && filters.priceMin !== '') params.priceMin = Number(filters.priceMin);
-    if (filters.priceMax !== undefined && filters.priceMax !== '' && Number(filters.priceMax) < 15000000) params.priceMax = Number(filters.priceMax);
-    if (filters.areaMin !== undefined && filters.areaMin !== '') params.areaMin = Number(filters.areaMin);
-    if (filters.areaMax !== undefined && filters.areaMax !== '' && Number(filters.areaMax) < 100) params.areaMax = Number(filters.areaMax);
-    if (filters.search) params.search = filters.search;
-    const { rows } = await tidb('/rooms', { method: 'GET', params });
-    const localRooms = rows.map((row) => mapRow(row));
+    let localRooms = [];
+    try {
+      const params = {};
+      if (filters.status && filters.status !== 'all') params.status = filters.status;
+      if (filters.city && filters.city !== 'Tất cả') params.city = filters.city;
+      if (filters.district && filters.district !== 'Tất cả') params.district = filters.district;
+      if (filters.priceMin !== undefined && filters.priceMin !== '') params.priceMin = Number(filters.priceMin);
+      if (filters.priceMax !== undefined && filters.priceMax !== '' && Number(filters.priceMax) < 15000000) params.priceMax = Number(filters.priceMax);
+      if (filters.areaMin !== undefined && filters.areaMin !== '') params.areaMin = Number(filters.areaMin);
+      if (filters.areaMax !== undefined && filters.areaMax !== '' && Number(filters.areaMax) < 100) params.areaMax = Number(filters.areaMax);
+      if (filters.search) params.search = filters.search;
+      const { rows } = await tidb('/rooms', { method: 'GET', params });
+      if (Array.isArray(rows)) {
+        localRooms = rows.map((row) => mapRow(row));
+      }
+    } catch (err) {
+      console.warn('[tidb] GET /rooms error, falling back to local seed/mock rooms:', err.message);
+      localRooms = getRooms();
+    }
     const extRooms = await fetchExternalRooms(filters);
-    return [...localRooms, ...extRooms];
+    const combined = [...localRooms, ...extRooms];
+    return combined.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }
 
   if ((!isReady || isMockMode || !pool) && !isWorkers) {
@@ -241,23 +251,37 @@ export const getAllRooms = async (filters = {}) => {
 
   query += ' ORDER BY created_at DESC';
 
-  dbUnavailable();
-  const [rows] = await pool.query(query, values);
-  const localRooms = await Promise.all(rows.map((row) => syncRoomCoords(row)));
+  let localRooms = [];
+  try {
+    if (pool) {
+      const [rows] = await pool.query(query, values);
+      localRooms = await Promise.all(rows.map((row) => syncRoomCoords(row)));
+    } else {
+      localRooms = getRooms();
+    }
+  } catch (err) {
+    console.warn('[rooms] query error, falling back to local seed/mock rooms:', err.message);
+    localRooms = getRooms();
+  }
   const extRooms = await fetchExternalRooms(filters);
   const combined = [...localRooms, ...extRooms];
   return combined.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 };
 
 export const getRoomById = async (id) => {
-  if (String(id).startsWith('ext_')) {
-    return getExternalRoomById(id);
+  if (String(id).startsWith('ext_') || !isNaN(Number(id))) {
+    const ext = getExternalRoomById(id);
+    if (ext) return ext;
   }
 
   if (isDataService()) {
-    const { rows } = await tidb('/rooms/{id}', { method: 'GET', params: { id } });
-    if (!rows[0]) return getExternalRoomById(id);
-    return mapRow(rows[0]);
+    try {
+      const { rows } = await tidb('/rooms/{id}', { method: 'GET', params: { id } });
+      if (rows && rows[0]) return mapRow(rows[0]);
+    } catch (err) {
+      console.warn('[tidb] GET /rooms/{id} error:', err.message);
+    }
+    return getExternalRoomById(id);
   }
 
   if ((!isReady || isMockMode || !pool) && !isWorkers) {
@@ -268,10 +292,15 @@ export const getRoomById = async (id) => {
     return fixed;
   }
 
-  dbUnavailable();
-  const [rows] = await pool.query('SELECT * FROM rooms WHERE id = ?', [id]);
-  if (!rows[0]) return getExternalRoomById(id);
-  return syncRoomCoords(rows[0]);
+  try {
+    if (pool) {
+      const [rows] = await pool.query('SELECT * FROM rooms WHERE id = ?', [id]);
+      if (rows && rows[0]) return syncRoomCoords(rows[0]);
+    }
+  } catch (err) {
+    console.warn('[rooms] getRoomById query error:', err.message);
+  }
+  return getExternalRoomById(id);
 };
 
 export const createRoom = async (roomData) => {
@@ -678,17 +707,21 @@ export const incrementRoomContacts = async (id) => incrementCounter(id, 'contact
 
 export const getRoomStats = async () => {
   if (isDataService()) {
-    const { rows } = await tidb('/rooms/stats', { method: 'GET' });
-    const stats = rows[0] || {};
-    return {
-      total: Number(stats.total || 0),
-      available: Number(stats.available || 0),
-      rented: Number(stats.rented || 0),
-      revenue: Number(stats.revenue || 0),
-    };
+    try {
+      const { rows } = await tidb('/rooms/stats', { method: 'GET' });
+      const stats = rows[0] || {};
+      return {
+        total: Number(stats.total || 0),
+        available: Number(stats.available || 0),
+        rented: Number(stats.rented || 0),
+        revenue: Number(stats.revenue || 0),
+      };
+    } catch (err) {
+      console.warn('[tidb] GET /rooms/stats error, using local:', err.message);
+    }
   }
 
-  if ((!isReady || isMockMode || !pool) && !isWorkers) {
+  if ((!isReady || isMockMode || !pool) || isWorkers) {
     const rooms = getRooms();
     const total = rooms.length;
     const available = rooms.filter((room) => room.status === 'available').length;

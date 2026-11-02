@@ -16,6 +16,7 @@ import {
 
 import {
   listRooms,
+  getLiveRooms,
   getRoom,
   addRoom,
   editRoom,
@@ -279,8 +280,9 @@ import { cacheRoomsMiddleware } from './middleware/cacheMiddleware.js';
    ROOM ROUTES
 ========================= */
 
-// Version phải đặt trước /api/rooms/:id
+// Version và Live Rooms phải đặt trước /api/rooms/:id
 app.get('/api/rooms/version', getRoomsVersion);
+app.get('/api/rooms/live', getLiveRooms);
 
 app.get('/api/rooms/stats', authenticate, requireAdmin, stats);
 

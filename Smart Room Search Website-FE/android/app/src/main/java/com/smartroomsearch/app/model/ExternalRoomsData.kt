@@ -117,20 +117,39 @@ object ExternalRoomsData {
     }
 
     /**
-     * Tự động crawl và cập nhật phòng thật theo thời gian thực từ live API Chợ Tốt Nhà.
+     * Tự động crawl và cập nhật phòng thật theo thời gian thực từ live API Chợ Tốt Nhà theo từng tỉnh thành.
      * Tự động xóa bài đăng nếu chủ bài viết gỡ bỏ hoặc phòng đã cho thuê.
      * 100% hình ảnh hiển thị trực tiếp từ CDN máy chủ ảnh: cdn.chotot.com
      */
-    suspend fun fetchLiveRooms(): List<Room> = withContext(Dispatchers.IO) {
+    suspend fun fetchLiveRooms(targetCity: String = "TP. Hồ Chí Minh"): List<Room> = withContext(Dispatchers.IO) {
         try {
-            val offsets = listOf(0, 50, 100, 150)
+            val regId = when {
+                targetCity.contains("Hà Nội", ignoreCase = true) -> 12000
+                targetCity.contains("Đà Nẵng", ignoreCase = true) -> 3017
+                targetCity.contains("Bình Dương", ignoreCase = true) -> 2011
+                targetCity.contains("Cần Thơ", ignoreCase = true) -> 5027
+                targetCity.contains("Hải Phòng", ignoreCase = true) -> 4019
+                else -> 13000
+            }
+            val defaultLat = when {
+                targetCity.contains("Hà Nội", ignoreCase = true) -> 21.0285
+                targetCity.contains("Đà Nẵng", ignoreCase = true) -> 16.0544
+                else -> 10.7769
+            }
+            val defaultLng = when {
+                targetCity.contains("Hà Nội", ignoreCase = true) -> 105.8542
+                targetCity.contains("Đà Nẵng", ignoreCase = true) -> 108.2022
+                else -> 106.7009
+            }
+
+            val offsets = listOf(0, 50)
             val liveRooms = mutableListOf<Room>()
             val now = System.currentTimeMillis()
             val seenIds = mutableSetOf<Long>()
 
             for (offset in offsets) {
                 try {
-                    val url = URL("https://gateway.chotot.com/v1/public/ad-listing?region_v2=13000&cg=1050&limit=50&o=$offset")
+                    val url = URL("https://gateway.chotot.com/v1/public/ad-listing?region_v2=$regId&cg=1050&limit=50&o=$offset")
                     val conn = url.openConnection() as HttpURLConnection
                     conn.requestMethod = "GET"
                     conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
@@ -157,6 +176,7 @@ object ExternalRoomsData {
                                 val rawArea = ad.optString("area_name", "Quận 1")
                                 val street = ad.optString("street_name", "")
                                 val ward = ad.optString("ward_name", "")
+                                val resolvedCity = ad.optString("region_name", targetCity)
                                 val district = when {
                                     rawArea.contains("Gò Vấp", ignoreCase = true) -> "Gò Vấp"
                                     rawArea.contains("Bình Thạnh", ignoreCase = true) -> "Bình Thạnh"
@@ -177,7 +197,7 @@ object ExternalRoomsData {
                                     rawArea.contains("Quận 12", ignoreCase = true) -> "Quận 12"
                                     else -> rawArea.replace("Quận ", "").trim()
                                 }
-                                val fullAddress = listOf(street, ward, rawArea, "TP.HCM").filter { it.isNotBlank() }.joinToString(", ")
+                                val fullAddress = listOf(street, ward, rawArea, resolvedCity).filter { it.isNotBlank() }.joinToString(", ")
                                 val size = ad.optDouble("size", 25.0)
 
                                 // 100% Ảnh CDN từ cdn.chotot.com
@@ -199,8 +219,8 @@ object ExternalRoomsData {
                                 }
                                 if (imagesList.isEmpty()) continue
 
-                                val lat = ad.optDouble("latitude", 10.7769)
-                                val lng = ad.optDouble("longitude", 106.7009)
+                                val lat = ad.optDouble("latitude", defaultLat)
+                                val lng = ad.optDouble("longitude", defaultLng)
 
                                 val amenities = mutableListOf("Wifi tốc độ cao", "Camera an ninh")
                                 val combinedText = (subject + " " + body).lowercase()
@@ -230,7 +250,7 @@ object ExternalRoomsData {
                                         serviceFee = 150000,
                                         maxPeople = 2,
                                         district = district,
-                                        city = "TP.HCM",
+                                        city = resolvedCity,
                                         lat = lat,
                                         lng = lng,
                                         amenities = amenities,

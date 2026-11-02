@@ -67,6 +67,8 @@ import {
   Zap,
   Smartphone,
   Download,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import {
   AreaChart,
@@ -2392,6 +2394,9 @@ export default function App() {
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [roomsReloadKey, setRoomsReloadKey] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>("");
+  const [newRoomsAlert, setNewRoomsAlert] = useState<string>("");
   const [visibleRoomsCount, setVisibleRoomsCount] = useState(18);
   const roomsRef = useRef<Room[]>(rooms);
   useEffect(() => {
@@ -2526,9 +2531,18 @@ export default function App() {
   };
 
   const fetchLiveChoTotRooms = async (cityName: string): Promise<Room[]> => {
+    // 1. Gọi trực tiếp endpoint serverless backend /api/rooms/live (cực nhanh, không dính CORS/Cloudflare bot check)
+    try {
+      const res = await api.get("/rooms/live", { params: { city: cityName, limit: 50 }, timeout: 7000 });
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data.map(mapApiRoomToRoom);
+      }
+    } catch (e) {
+      console.warn("Backend /api/rooms/live failed, trying client fallback:", e);
+    }
+
+    // 2. Client fallback
     const regId = REGION_IDS[cityName] || 13000;
-    
-    // Gọi qua AllOrigins CORS proxy tới gateway Chợ Tốt trực tiếp (hoạt động 100% phía client)
     try {
       const targetUrl = `https://gateway.chotot.com/v1/public/ad-listing?region_v2=${regId}&cg=1050&limit=50&o=0`;
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
@@ -2609,66 +2623,84 @@ export default function App() {
     }
   }, [selectedCity]);
 
-  // Load rooms with live real-time auto-fetch from Chợ Tốt per selectedCity
-  useEffect(() => {
-    let isMounted = true;
+  // Load rooms with live real-time auto-fetch and periodic background sync
+  const loadRooms = useCallback(async (isManual = false) => {
     if (roomsRef.current.length === 0) {
       setRoomsLoading(true);
     }
+    if (isManual) {
+      setIsRefreshing(true);
+    }
 
-    const loadRooms = async () => {
-      try {
-        const apiPromise = api.get("/rooms").then((res) => res.data).catch(() => []);
-        const livePromise = fetchLiveChoTotRooms(selectedCity).catch(() => []);
-        const [apiData, liveData] = await Promise.all([apiPromise, livePromise]);
+    try {
+      const apiPromise = api.get("/rooms").then((res) => res.data).catch(() => []);
+      const livePromise = fetchLiveChoTotRooms(selectedCity).catch(() => []);
+      const [apiData, liveData] = await Promise.all([apiPromise, livePromise]);
 
-        if (isMounted) {
-          const apiRooms = (Array.isArray(apiData) ? apiData : []).map(mapApiRoomToRoom);
-          const roomMap = new Map<string, Room>();
+      const apiRooms = (Array.isArray(apiData) ? apiData : []).map(mapApiRoomToRoom);
+      const roomMap = new Map<string, Room>();
 
-          // Kho dữ liệu 1.152 phòng có sẵn cho toàn bộ 6 tỉnh thành
-          for (const ext of EXTERNAL_MOCK_ROOMS) {
-            roomMap.set(String(ext.id), ext);
-          }
-          // Các phòng từ backend API
-          for (const ar of apiRooms) {
-            roomMap.set(String(ar.id), ar);
-          }
-          // Tin mới nhất trực tiếp thời gian thực vừa crawl về cho thành phố đang chọn
-          for (const lr of liveData) {
-            roomMap.set(String(lr.id), lr);
-          }
-
-          const finalRooms = Array.from(roomMap.values()).sort(
-            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-          );
-          setRooms(finalRooms);
-          setRoomsError(null);
-        }
-      } catch (error) {
-        console.error("Failed to load rooms", error);
-        if (isMounted) {
-          setRooms(EXTERNAL_MOCK_ROOMS);
-          setRoomsError(null);
-        }
-      } finally {
-        if (isMounted) setRoomsLoading(false);
+      // Kho dữ liệu 1.152 phòng có sẵn cho toàn bộ 6 tỉnh thành
+      for (const ext of EXTERNAL_MOCK_ROOMS) {
+        roomMap.set(String(ext.id), ext);
       }
-    };
+      // Các phòng từ backend API
+      for (const ar of apiRooms) {
+        roomMap.set(String(ar.id), ar);
+      }
+      // Tin mới nhất trực tiếp thời gian thực vừa crawl về cho thành phố đang chọn
+      for (const lr of liveData) {
+        roomMap.set(String(lr.id), lr);
+      }
 
-    loadRooms();
+      const finalRooms = Array.from(roomMap.values()).sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+
+      // Nhận diện tin đăng mới so với danh sách trước
+      if (roomsRef.current.length > 0) {
+        const oldIds = new Set(roomsRef.current.map((r) => String(r.id)));
+        const newRooms = finalRooms.filter((r) => !oldIds.has(String(r.id)) && isRoomInCity(r, selectedCity));
+        if (newRooms.length > 0) {
+          setNewRoomsAlert(`Đã tự động cập nhật ${newRooms.length} bài đăng phòng trọ mới nhất tại ${selectedCity}!`);
+          setTimeout(() => setNewRoomsAlert(""), 8000);
+        } else if (isManual) {
+          setNewRoomsAlert(`Danh sách phòng trọ tại ${selectedCity} đã là mới nhất!`);
+          setTimeout(() => setNewRoomsAlert(""), 4000);
+        }
+      }
+
+      setRooms(finalRooms);
+      setRoomsError(null);
+      const nowStr = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+      setLastSyncTime(nowStr);
+    } catch (error) {
+      console.error("Failed to load rooms", error);
+      if (roomsRef.current.length === 0) {
+        setRooms(EXTERNAL_MOCK_ROOMS);
+        setRoomsError(null);
+      }
+    } finally {
+      setRoomsLoading(false);
+      if (isManual) {
+        setIsRefreshing(false);
+      }
+    }
+  }, [selectedCity]);
+
+  useEffect(() => {
+    loadRooms(false);
     loadDemands();
 
-    // Tự động làm mới danh sách phòng mỗi 60 giây để cập nhật tin mới liên tục theo thời gian thực
+    // Tự động làm mới danh sách phòng mỗi 30 giây để cập nhật tin bài mới liên tục theo thời gian thực
     const refreshTimer = setInterval(() => {
-      loadRooms();
-    }, 60000);
+      loadRooms(false);
+    }, 30000);
 
     return () => {
-      isMounted = false;
       clearInterval(refreshTimer);
     };
-  }, [roomsReloadKey, loadDemands, selectedCity]);
+  }, [roomsReloadKey, loadDemands, loadRooms]);
 
   // Load chi tiết phòng độc lập từ API — không phụ thuộc list.
   // Fix: /rooms/:id truy cập trực tiếp (F5, link chia sẻ) hoặc phòng
@@ -3827,9 +3859,17 @@ const goHome = () => {
         {/* Top bar */}
         <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-              Smart Room Search · TP.HCM
-            </p>
+            <div className="mb-1 flex items-center gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                Smart Room Search · {selectedCity}
+              </p>
+              {lastSyncTime && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Tự động cập nhật ({lastSyncTime})
+                </span>
+              )}
+            </div>
             <h1 id="rooms-heading" className="text-3xl font-extrabold tracking-[-0.03em] text-foreground sm:text-4xl">
               Tìm nơi ở hợp với bạn
             </h1>
@@ -3838,6 +3878,20 @@ const goHome = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => loadRooms(true)}
+              disabled={isRefreshing}
+              className="flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm disabled:opacity-50"
+              title="Làm mới và kiểm tra tin phòng trọ mới nhất"
+            >
+              <RefreshCw size={14} className={`text-emerald-500 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Làm mới tin</span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => navigate("/map")}
@@ -3891,6 +3945,23 @@ const goHome = () => {
             </label>
           </div>
         </div>
+
+        {/* Banner thông báo tin đăng mới tự động cập nhật */}
+        {newRoomsAlert && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3.5 text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{newRoomsAlert}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNewRoomsAlert("")}
+              className="text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 p-1"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
 
         {/* Origin & Source Filter Tabs */}
         <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
