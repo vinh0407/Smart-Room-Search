@@ -129,8 +129,8 @@ export default async function handler(request) {
       },
     });
   } catch (error) {
-    return new Response(JSON.stringify([]), {
-      status: 200,
+    return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
+      status: 500,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
