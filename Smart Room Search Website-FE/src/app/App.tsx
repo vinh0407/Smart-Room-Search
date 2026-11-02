@@ -2531,74 +2531,36 @@ export default function App() {
   };
 
   const fetchLiveChoTotRooms = async (cityName: string): Promise<Room[]> => {
-    // 1. Gọi trực tiếp endpoint serverless backend /api/rooms/live (cực nhanh, không dính CORS/Cloudflare bot check)
+    // 1. Thử gọi trực tiếp relative endpoint /api/rooms/live (Vercel Serverless Function hoặc Vite dev proxy)
     try {
-      const res = await api.get("/rooms/live", { params: { city: cityName, limit: 50 }, timeout: 7000 });
+      const vRes = await fetch(`/api/rooms/live?city=${encodeURIComponent(cityName)}&limit=50`, {
+        headers: { Accept: "application/json" }
+      });
+      if (vRes.ok) {
+        const json = await vRes.json();
+        if (Array.isArray(json) && json.length > 0) {
+          return json.map(mapApiRoomToRoom);
+        }
+      }
+    } catch {}
+
+    // 2. Thử gọi qua endpoint API backend
+    try {
+      const res = await api.get("/rooms/live", { params: { city: cityName, limit: 50 }, timeout: 6000 });
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         return res.data.map(mapApiRoomToRoom);
       }
-    } catch (e) {
-      console.warn("Backend /api/rooms/live failed, trying client fallback:", e);
-    }
+    } catch {}
 
-    // 2. Client fallback
-    const regId = REGION_IDS[cityName] || 13000;
+    // 3. Fallback trực tiếp qua domain Vercel chính thức (dành cho client/mobile/dev)
     try {
-      const targetUrl = `https://gateway.chotot.com/v1/public/ad-listing?region_v2=${regId}&cg=1050&limit=50&o=0`;
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-      const res = await fetch(proxyUrl);
-      if (res.ok) {
-        const json = await res.json();
-        const ads = json.ads || [];
-        if (Array.isArray(ads) && ads.length > 0) {
-          return ads
-            .filter((ad: any) => ad.list_id && ad.price > 0 && ad.images && ad.images.length > 0)
-            .map((ad: any): Room => {
-              const district = ad.area_name || "";
-              const street = ad.street_name ? `${ad.street_name}, ` : "";
-              const ward = ad.ward_name ? `${ad.ward_name}, ` : "";
-              const fullAddress = `${street}${ward}${district || cityName}, ${cityName}`;
-              const text = (ad.subject + " " + (ad.body || "")).toLowerCase();
-              const amenities = ["wifi"];
-              if (text.includes("máy lạnh") || text.includes("điều hòa")) amenities.push("ac");
-              if (text.includes("gác") || text.includes("duplex")) amenities.push("loft");
-              if (text.includes("ban công") || text.includes("cửa sổ")) amenities.push("balcony");
-              if (text.includes("bếp")) amenities.push("kitchen");
-              if (text.includes("xe")) amenities.push("parking");
-              if (text.includes("thú")) amenities.push("pet_friendly");
-
-              return {
-                id: Number(ad.list_id),
-                name: ad.subject || "Phòng trọ cho thuê",
-                price: Number(ad.price),
-                area: Number(ad.size) || 25,
-                address: fullAddress,
-                district: district,
-                city: cityName,
-                images: ad.images.filter((img: string) => img && img.startsWith("http")),
-                status: "available",
-                electricity: 3800,
-                water: 100000,
-                internet: 100000,
-                serviceFee: 150000,
-                maxPeople: 2,
-                lat: Number(ad.latitude) || (cityName === "Hà Nội" ? 21.0285 : cityName === "Đà Nẵng" ? 16.0544 : 10.7769),
-                lng: Number(ad.longitude) || (cityName === "Hà Nội" ? 105.8542 : cityName === "Đà Nẵng" ? 108.2022 : 106.7009),
-                amenities,
-                description: ad.body || ad.subject,
-                phone: ad.phone || "0908123456",
-                zaloLink: `https://zalo.me/${ad.phone || "0908123456"}`,
-                views: Math.floor(Math.random() * 300) + 120,
-                contacts: Math.floor(Math.random() * 30) + 8,
-                isFeatured: true,
-                isNew: true,
-                isCheap: Number(ad.price) <= 3000000,
-                rating: 4.8,
-                source: "nhatot",
-                externalUrl: `https://www.nhatot.com/${ad.list_id}.htm`,
-                createdAt: new Date(ad.orig_list_time || ad.list_time || Date.now()).toISOString(),
-              };
-            });
+      const vProd = await fetch(`https://smart-room-search.vercel.app/api/rooms/live?city=${encodeURIComponent(cityName)}&limit=50`, {
+        headers: { Accept: "application/json" }
+      });
+      if (vProd.ok) {
+        const json = await vProd.json();
+        if (Array.isArray(json) && json.length > 0) {
+          return json.map(mapApiRoomToRoom);
         }
       }
     } catch {}
@@ -2633,7 +2595,9 @@ export default function App() {
     }
 
     try {
-      const apiPromise = api.get("/rooms").then((res) => res.data).catch(() => []);
+      const apiPromise = fetch(`/api/rooms?city=${encodeURIComponent(selectedCity)}&limit=50`)
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => api.get("/rooms").then((res) => res.data).catch(() => []));
       const livePromise = fetchLiveChoTotRooms(selectedCity).catch(() => []);
       const [apiData, liveData] = await Promise.all([apiPromise, livePromise]);
 
