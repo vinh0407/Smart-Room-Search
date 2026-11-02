@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Room Detail Modal / Property View</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body {
+  margin: 0;
+  font-family: var(--font-sans, "Plus Jakarta Sans", system-ui, sans-serif);
+  background-color: var(--surface-base, #f7f7f5);
+  color: var(--ink-primary, #1c1917);
+  -webkit-font-smoothing: antialiased;
+}
+* {
+  box-sizing: border-box;
+}
+.detail-modal {
+  width: 880px;
+  height: 760px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px -8px rgba(0,0,0,0.12);
+  border: 1px solid #e7e5e4;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.top-action-bar {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e7e5e4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.source-tag-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(234, 88, 12, 0.1);
+  color: #c2410c;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #e7e5e4;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #78716c;
+}
+.modal-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.gallery-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  height: 240px;
+}
+.gallery-main {
+  background: #cbd5e1;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.gallery-sub-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gallery-sub {
+  flex: 1;
+  background: #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.room-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.room-title-h1 {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.3;
+  margin: 0 0 6px;
+}
+.room-address-line {
+  font-size: 14px;
+  color: #78716c;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.price-box {
+  text-align: right;
+  flex-shrink: 0;
+}
+.price-primary {
+  font-size: 26px;
+  font-weight: 900;
+  color: #ea580c;
+}
+.price-sub {
+  font-size: 12px;
+  color: #78716c;
+}
+.cost-breakdown {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  background: #f5f5f4;
+  padding: 16px;
+  border-radius: 14px;
+}
+.cost-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cost-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #78716c;
+}
+.cost-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c1917;
+}
+.amenities-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.amenity-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e7e5e4;
+  font-size: 13px;
+  font-weight: 600;
+  color: #44403c;
+}
+.contact-footer {
+  padding: 16px 28px;
+  border-top: 1px solid #e7e5e4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+}
+.landlord-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.landlord-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ea580c;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+.landlord-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.landlord-status {
+  font-size: 12px;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.contact-actions {
+  display: flex;
+  gap: 10px;
+}
+.btn-call {
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  padding: 0 20px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.btn-zalo {
+  background: #0068ff;
+  color: #ffffff;
+  border: none;
+  padding: 0 20px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+</style>
+</helmet>
+
+<div class="detail-modal">
+  <!-- Top bar -->
+  <div class="top-action-bar">
+    <div class="source-tag-detail">
+      <span style="width:6px; height:6px; border-radius:50%; background:#ea580c;"></span>
+      <span>Nguồn: Chợ Tốt Nhà • Tin đã xác thực số điện thoại</span>
+    </div>
+    <div class="action-buttons">
+      <button class="icon-btn" title="Lưu bài đăng">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+      </button>
+      <button class="icon-btn" title="Chia sẻ">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+      </button>
+      <button class="icon-btn" title="Đóng">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Scroll content -->
+  <div class="modal-scroll">
+    <!-- Gallery -->
+    <div class="gallery-layout">
+      <div class="gallery-main">
+        <svg width="100%" height="100%" viewBox="0 0 540 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="540" height="240" fill="#e2e8f0"/>
+          <rect x="60" y="60" width="260" height="130" rx="8" fill="#3b82f6" opacity="0.85"/>
+          <rect x="80" y="40" width="60" height="35" rx="4" fill="#60a5fa"/>
+          <rect x="160" y="40" width="60" height="35" rx="4" fill="#93c5fd"/>
+          <rect x="360" y="40" width="120" height="150" rx="6" fill="#cbd5e1"/>
+        </svg>
+      </div>
+      <div class="gallery-sub-grid">
+        <div class="gallery-sub">
+          <svg width="100%" height="100%" viewBox="0 0 280 114" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="280" height="114" fill="#f1f5f9"/>
+            <rect x="40" y="30" width="100" height="60" rx="6" fill="#10b981" opacity="0.75"/>
+          </svg>
+        </div>
+        <div class="gallery-sub">
+          <svg width="100%" height="100%" viewBox="0 0 280 114" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="280" height="114" fill="#e2e8f0"/>
+            <rect x="40" y="30" width="90" height="60" rx="6" fill="#d97706" opacity="0.75"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title & Price -->
+    <div class="room-header-row">
+      <div>
+        <h1 class="room-title-h1">Phòng trọ ban công full nội thất cạnh ĐH Bách Khoa</h1>
+        <div class="room-address-line">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+          <span>497/24 Lý Thường Kiệt, Phường 14, Quận 10, TP. Hồ Chí Minh</span>
+        </div>
+      </div>
+      <div class="price-box">
+        <div class="price-primary">4.200.000 đ</div>
+        <div class="price-sub">Tiền cọc: 1 tháng</div>
+      </div>
+    </div>
+
+    <!-- Costs -->
+    <div class="cost-breakdown">
+      <div class="cost-item">
+        <span class="cost-lbl">Điện sinh hoạt</span>
+        <span class="cost-val">3.800 đ / kWh</span>
+      </div>
+      <div class="cost-item">
+        <span class="cost-lbl">Nước sinh hoạt</span>
+        <span class="cost-val">100.000 đ / người</span>
+      </div>
+      <div class="cost-item">
+        <span class="cost-lbl">Internet Wi-Fi</span>
+        <span class="cost-val">Miễn phí</span>
+      </div>
+      <div class="cost-item">
+        <span class="cost-lbl">Phí dịch vụ & Xe</span>
+        <span class="cost-val">120.000 đ / tháng</span>
+      </div>
+    </div>
+
+    <!-- Amenities -->
+    <div>
+      <h3 style="font-size:16px; font-weight:800; margin:0 0 12px;">Tiện ích căn phòng</h3>
+      <div class="amenities-grid">
+        <div class="amenity-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><line x1="6" y1="12" x2="18" y2="12"></line></svg>
+          <span>Máy điều hòa</span>
+        </div>
+        <div class="amenity-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="4" y1="10" x2="20" y2="10"></line></svg>
+          <span>Tủ lạnh riêng</span>
+        </div>
+        <div class="amenity-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><path d="M4 14h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z"></path></svg>
+          <span>Ban công lộng gió</span>
+        </div>
+        <div class="amenity-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <span>WC khép kín</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact footer -->
+  <div class="contact-footer">
+    <div class="landlord-info">
+      <div class="landlord-avatar">A</div>
+      <div>
+        <div class="landlord-name">Anh Tuấn (Chủ trọ)</div>
+        <div class="landlord-status">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+          <span>Thường phản hồi trong 5 phút</span>
+        </div>
+      </div>
+    </div>
+    <div class="contact-actions">
+      <button class="btn-zalo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+        <span>Nhắn Zalo</span>
+      </button>
+      <button class="btn-call">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        <span>Gọi: 0918.xxx.899</span>
+      </button>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":880,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

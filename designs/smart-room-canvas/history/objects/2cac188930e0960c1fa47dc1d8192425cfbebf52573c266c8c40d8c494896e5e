@@ -1,0 +1,74 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-02T15:08:00Z"
+  },
+  "title": "Smart Room Search UI/UX",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 880,
+      "expand": "fill",
+      "title": "Desktop Web - Room Search & Map"
+    },
+    "MobileApp.dc.html": {
+      "x": 1360,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Mobile App - Renter Feed & Filters"
+    },
+    "RoomDetail.dc.html": {
+      "x": 0,
+      "y": 980,
+      "w": 880,
+      "h": 760,
+      "title": "Room Detail Modal / Property View"
+    },
+    "DemandPosting.dc.html": {
+      "x": 960,
+      "y": 980,
+      "w": 760,
+      "h": 660,
+      "title": "Demand Posting Flow (Cascading Form)"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "MobileApp.dc.html",
+    "RoomDetail.dc.html",
+    "DemandPosting.dc.html"
+  ],
+  "notes": {
+    "section1": {
+      "x": 0,
+      "y": -140,
+      "text": "Core Renter Experience: Desktop & Mobile",
+      "kind": "title1",
+      "maxW": 1750
+    },
+    "section2": {
+      "x": 0,
+      "y": 880,
+      "text": "Deep Interaction Flows: Room Inspection & Tenant Demands",
+      "kind": "title1",
+      "maxW": 1720
+    }
+  },
+  "designSystems": [
+    {
+      "title": "Smart Room Search",
+      "namespace": "smart-room",
+      "artifact": "designs/smart-room-design-system",
+      "version": null,
+      "copiedAt": "2026-11-02T15:08:00Z"
+    }
+  ]
+}

@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Desktop Web - Room Search & Map</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body {
+  margin: 0;
+  font-family: var(--font-sans, "Plus Jakarta Sans", system-ui, sans-serif);
+  background-color: var(--surface-base, #f7f7f5);
+  color: var(--ink-primary, #1c1917);
+  -webkit-font-smoothing: antialiased;
+}
+* {
+  box-sizing: border-box;
+}
+.app-header {
+  height: 68px;
+  background: var(--surface-card, #ffffff);
+  border-bottom: 1px solid var(--border-subtle, #e7e5e4);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: #ea580c;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+.logo-text {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.logo-text span {
+  color: #ea580c;
+}
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #166534;
+}
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+.btn-primary {
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  height: 40px;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.filter-strip {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-subtle, #e7e5e4);
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.filter-select {
+  height: 38px;
+  padding: 0 30px 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, #e7e5e4);
+  background: #f5f5f4;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1c1917;
+  outline: none;
+}
+.source-filters {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.source-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle, #e7e5e4);
+  background: #f5f5f4;
+  color: #78716c;
+  cursor: pointer;
+}
+.source-chip.active {
+  background: #fff7ed;
+  color: #ea580c;
+  border-color: #fdba74;
+}
+.main-layout {
+  display: grid;
+  grid-template-columns: 580px 1fr;
+  height: calc(880px - 68px - 63px);
+}
+.feed-pane {
+  overflow-y: auto;
+  padding: 20px 24px;
+  border-right: 1px solid var(--border-subtle, #e7e5e4);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #fafaf9;
+}
+.feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.feed-title {
+  font-size: 16px;
+  font-weight: 800;
+}
+.feed-sub {
+  font-size: 13px;
+  color: #78716c;
+}
+.card-item {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle, #e7e5e4);
+  overflow: hidden;
+  display: flex;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.card-thumb {
+  width: 170px;
+  height: 140px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+  position: relative;
+}
+.badge-chotot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ea580c;
+}
+.card-details {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+}
+.card-price {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ea580c;
+}
+.card-name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 4px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-loc {
+  font-size: 12px;
+  color: #78716c;
+}
+.card-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.tag-pill {
+  font-size: 11px;
+  background: #f5f5f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #57534e;
+}
+.map-pane {
+  position: relative;
+  background: #e2e8f0;
+}
+.map-canvas {
+  width: 100%;
+  height: 100%;
+}
+.map-pin {
+  position: absolute;
+  background: #ea580c;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.35);
+  border: 2px solid #ffffff;
+}
+.pin-1 { top: 240px; left: 180px; }
+.pin-2 { top: 160px; left: 340px; }
+.pin-3 { top: 380px; left: 260px; background: #2563eb; }
+</style>
+</helmet>
+
+<div style="width: 100%; height: 880px; display: flex; flex-direction: column;">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="logo-group">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      </div>
+      <div class="logo-text">Smart<span>Room</span></div>
+    </div>
+    <div class="nav-actions">
+      <div class="live-badge">
+        <span class="pulse"></span>
+        <span>Trực tiếp: 15:08</span>
+      </div>
+      <button class="btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Đăng tin tìm phòng</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Cascading Filter Strip -->
+  <div class="filter-strip">
+    <select class="filter-select">
+      <option selected>TP. Hồ Chí Minh</option>
+      <option>Hà Nội</option>
+      <option>Đà Nẵng</option>
+    </select>
+    <select class="filter-select">
+      <option selected>Quận 10</option>
+      <option>Quận 1</option>
+      <option>Quận Bình Thạnh</option>
+    </select>
+    <select class="filter-select">
+      <option selected>Phường 14</option>
+      <option>Phường 12</option>
+      <option>Tất cả phường</option>
+    </select>
+    <select class="filter-select">
+      <option>Mức giá: 3 - 5 triệu</option>
+      <option>Dưới 3 triệu</option>
+      <option>Trên 5 triệu</option>
+    </select>
+    <div class="source-filters">
+      <span class="source-chip active">Tất cả nguồn</span>
+      <span class="source-chip">Chợ Tốt Nhà</span>
+      <span class="source-chip">Batdongsan</span>
+      <span class="source-chip">Phongtro123</span>
+    </div>
+  </div>
+
+  <!-- Main View -->
+  <div class="main-layout">
+    <!-- List -->
+    <div class="feed-pane">
+      <div class="feed-header">
+        <div>
+          <span class="feed-title">28 phòng trống tại Quận 10</span>
+          <span class="feed-sub"> • Tự động làm mới mỗi 30s</span>
+        </div>
+        <select class="filter-select" style="height:32px; font-size:12px;">
+          <option>Mới nhất</option>
+          <option>Giá thấp đến cao</option>
+        </select>
+      </div>
+
+      <!-- Card 1 -->
+      <div class="card-item">
+        <div class="card-thumb">
+          <svg width="170" height="140" viewBox="0 0 170 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="170" height="140" fill="#e2e8f0"/>
+            <rect x="25" y="45" width="120" height="70" rx="6" fill="#3b82f6" opacity="0.8"/>
+            <rect x="35" y="30" width="35" height="25" rx="3" fill="#60a5fa"/>
+            <rect x="75" y="30" width="35" height="25" rx="3" fill="#93c5fd"/>
+            <circle cx="130" cy="30" r="12" fill="#cbd5e1"/>
+          </svg>
+          <div class="badge-chotot">Chợ Tốt Nhà</div>
+        </div>
+        <div class="card-details">
+          <div>
+            <div class="card-price">4.200.000 đ/tháng <span style="font-size:11px; color:#78716c; font-weight:500;">(25m²)</span></div>
+            <div class="card-name">Phòng trọ ban công full tiện nghi gần ĐH Bách Khoa</div>
+            <div class="card-loc">Đường Lý Thường Kiệt, P.14, Q.10</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag-pill">Máy lạnh</span>
+            <span class="tag-pill">Gác lửng</span>
+            <span class="tag-pill">Giờ tự do</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="card-item">
+        <div class="card-thumb">
+          <svg width="170" height="140" viewBox="0 0 170 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="170" height="140" fill="#f1f5f9"/>
+            <rect x="30" y="55" width="110" height="60" rx="6" fill="#10b981" opacity="0.8"/>
+            <rect x="40" y="40" width="30" height="20" rx="3" fill="#34d399"/>
+            <rect x="120" y="70" width="16" height="35" fill="#d97706"/>
+          </svg>
+          <div class="badge-chotot" style="color:#059669;">Chính chủ</div>
+        </div>
+        <div class="card-details">
+          <div>
+            <div class="card-price">3.800.000 đ/tháng <span style="font-size:11px; color:#78716c; font-weight:500;">(20m²)</span></div>
+            <div class="card-name">Căn hộ mini sạch đẹp, không chung chủ, có thang máy</div>
+            <div class="card-loc">Đường Tô Hiến Thành, P.14, Q.10</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag-pill">Thang máy</span>
+            <span class="tag-pill">Khóa vân tay</span>
+            <span class="tag-pill">WC riêng</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="card-item">
+        <div class="card-thumb">
+          <svg width="170" height="140" viewBox="0 0 170 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="170" height="140" fill="#e2e8f0"/>
+            <rect x="25" y="50" width="120" height="65" rx="6" fill="#6366f1" opacity="0.8"/>
+            <rect x="110" y="30" width="30" height="25" rx="3" fill="#818cf8"/>
+          </svg>
+          <div class="badge-chotot" style="color:#1d4ed8;">Batdongsan</div>
+        </div>
+        <div class="card-details">
+          <div>
+            <div class="card-price">5.200.000 đ/tháng <span style="font-size:11px; color:#78716c; font-weight:500;">(32m²)</span></div>
+            <div class="card-name">Studio cao cấp có ban công lộng gió, bếp riêng biệt</div>
+            <div class="card-loc">Đường 3 Tháng 2, P.12, Q.10</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag-pill">Bếp riêng</span>
+            <span class="tag-pill">Ban công</span>
+            <span class="tag-pill">Máy giặt</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map Pane -->
+    <div class="map-pane">
+      <svg class="map-canvas" viewBox="0 0 700 740" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="700" height="740" fill="#eef2f6"/>
+        <!-- Map Roads -->
+        <path d="M0 120 L700 200" stroke="#ffffff" stroke-width="16"/>
+        <path d="M0 360 L700 380" stroke="#ffffff" stroke-width="22"/>
+        <path d="M220 0 L250 740" stroke="#ffffff" stroke-width="18"/>
+        <path d="M460 0 L430 740" stroke="#ffffff" stroke-width="14"/>
+        <path d="M100 480 L600 700" stroke="#ffffff" stroke-width="12"/>
+        <!-- Blocks -->
+        <rect x="40" y="140" width="160" height="200" rx="10" fill="#e2e8f0" opacity="0.6"/>
+        <rect x="270" y="50" width="160" height="130" rx="10" fill="#e2e8f0" opacity="0.6"/>
+        <rect x="270" y="220" width="140" height="140" rx="10" fill="#cbd5e1" opacity="0.4"/>
+        <rect x="480" y="180" width="180" height="180" rx="10" fill="#e2e8f0" opacity="0.6"/>
+        <rect x="60" y="400" width="140" height="240" rx="10" fill="#e2e8f0" opacity="0.6"/>
+        <rect x="260" y="410" width="150" height="220" rx="10" fill="#e2e8f0" opacity="0.6"/>
+        <!-- Park -->
+        <rect x="480" y="420" width="180" height="200" rx="12" fill="#dcfce7"/>
+        <text x="530" y="525" fill="#15803d" font-size="13" font-weight="700" font-family="sans-serif">Công Viên Lê Thị Riêng</text>
+      </svg>
+      <div class="map-pin pin-1">4.2 triệu</div>
+      <div class="map-pin pin-2">3.8 triệu</div>
+      <div class="map-pin pin-3">5.2 triệu</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":880}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

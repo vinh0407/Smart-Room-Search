@@ -1,0 +1,86 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+body {
+  margin: 0;
+  background-color: var(--surface-base, #f7f7f5);
+  font-family: var(--font-sans, "Plus Jakarta Sans", system-ui, sans-serif);
+  color: var(--ink-primary, #1c1917);
+  overflow: hidden;
+}
+.cover-container {
+  width: 960px;
+  height: 288px;
+  position: relative;
+  box-sizing: border-box;
+  padding: 40px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.cover-text {
+  max-width: 440px;
+  z-index: 2;
+}
+.cover-title {
+  margin: 0;
+  font-size: 52px;
+  line-height: 0.95;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--ink-primary, #1c1917);
+}
+.cover-title span {
+  color: var(--brand-primary, #ea580c);
+}
+.cover-tagline {
+  margin: 14px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink-muted, #78716c);
+  font-weight: 500;
+}
+.cover-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 480px;
+  height: 288px;
+}
+</style>
+</head>
+<body>
+<div class="cover-container">
+  <div class="cover-text">
+    <h1 class="cover-title">Smart Room <span>Search</span></h1>
+    <p class="cover-tagline">Standardized design system for nationwide room discovery and housing management across Vietnam.</p>
+  </div>
+  <!--
+    Derivation:
+    - Blocks: brand-primary (#ea580c) x 160x180, brand-accent (#10b981) x 110x130, source-bds (#1d4ed8) x 80x80
+    - Arrangement: Staggered modular blocks bleeding off top-right edge with rounded corners (radius-lg)
+    - Pattern row: Geometric modular tiles and pulsing sync rings representing live rental feeds
+    - Steps: radius-lg (20px), radius-md (12px), radius-full (pills)
+  -->
+  <svg class="cover-art" viewBox="0 0 480 288" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background subtle grid accent -->
+    <rect x="220" y="24" width="220" height="240" rx="20" fill="var(--surface-card, #ffffff)" stroke="var(--border-subtle, #e7e5e4)" stroke-width="1"/>
+    <!-- Brand primary block -->
+    <rect x="140" y="44" width="160" height="170" rx="20" fill="var(--brand-primary, #ea580c)"/>
+    <!-- Live sync accent block -->
+    <rect x="280" y="90" width="140" height="150" rx="20" fill="var(--brand-accent, #10b981)"/>
+    <!-- Aggregated partner blue tile -->
+    <rect x="80" y="110" width="80" height="80" rx="16" fill="var(--source-bds, #1d4ed8)"/>
+    <!-- Contrast geometric cutout dots / indicators -->
+    <circle cx="180" cy="80" r="12" fill="#ffffff" fill-opacity="0.9"/>
+    <circle cx="340" cy="130" r="16" fill="#ffffff" fill-opacity="0.9"/>
+    <circle cx="370" cy="190" r="8" fill="#ffffff" fill-opacity="0.6"/>
+    <!-- Connection lines -->
+    <line x1="192" y1="80" x2="324" y2="130" stroke="#ffffff" stroke-width="2" stroke-dasharray="4 4" stroke-opacity="0.8"/>
+  </svg>
+</div>
+</body>
+</html>

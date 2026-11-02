@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Mobile App - Renter Feed & Filters</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body {
+  margin: 0;
+  font-family: var(--font-sans, "Plus Jakarta Sans", system-ui, sans-serif);
+  background-color: #f7f7f5;
+  color: #1c1917;
+  -webkit-font-smoothing: antialiased;
+}
+* {
+  box-sizing: border-box;
+}
+.phone-frame {
+  width: 390px;
+  height: 844px;
+  background: #ffffff;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.status-bar {
+  height: 44px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  background: #ffffff;
+}
+.mobile-header {
+  padding: 8px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand-name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.brand-name span {
+  color: #ea580c;
+}
+.city-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f5f5f4;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1c1917;
+  border: 1px solid #e7e5e4;
+}
+.search-box {
+  margin: 0 16px 10px;
+  height: 42px;
+  background: #f5f5f4;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  border: 1px solid #e7e5e4;
+}
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  width: 100%;
+  color: #1c1917;
+}
+.cascading-scroll {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 10px;
+  overflow-x: auto;
+}
+.cascade-chip {
+  white-space: nowrap;
+  background: #ffffff;
+  border: 1px solid #e7e5e4;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #57534e;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cascade-chip.selected {
+  background: #fff7ed;
+  border-color: #ea580c;
+  color: #ea580c;
+  font-weight: 700;
+}
+.sources-bar {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 12px;
+  overflow-x: auto;
+}
+.source-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #f5f5f4;
+  color: #78716c;
+  white-space: nowrap;
+}
+.source-pill.active {
+  background: #1c1917;
+  color: #ffffff;
+}
+.scroll-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.mobile-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e7e5e4;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.card-media {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  background: #e2e8f0;
+}
+.source-badge-mobile {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ea580c;
+}
+.card-info {
+  padding: 12px 14px;
+}
+.price-tag {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ea580c;
+}
+.room-title-m {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 4px 0 6px;
+  line-height: 1.35;
+}
+.room-address-m {
+  font-size: 12px;
+  color: #78716c;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: #ffffff;
+  border-top: 1px solid #e7e5e4;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: 8px;
+}
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #a8a29e;
+  cursor: pointer;
+}
+.nav-item.active {
+  color: #ea580c;
+}
+</style>
+</helmet>
+
+<div class="phone-frame">
+  <!-- Status bar -->
+  <div class="status-bar">
+    <span>9:41</span>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="18" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="9" width="12" height="6" fill="currentColor"/><path d="M22 11v2"/></svg>
+    </div>
+  </div>
+
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <div class="brand-name">Smart<span>Room</span></div>
+    <div class="city-pill">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path></svg>
+      <span>TP. Hồ Chí Minh</span>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-box">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#78716c" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input class="search-input" type="text" placeholder="Tìm theo trường ĐH, tuyến đường...">
+  </div>
+
+  <!-- Cascading Location Quick Selectors -->
+  <div class="cascading-scroll">
+    <div class="cascade-chip selected">
+      <span>Quận 10</span>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <div class="cascade-chip selected">
+      <span>Phường 14</span>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+    <div class="cascade-chip">
+      <span>Giá dưới 4 triệu</span>
+    </div>
+    <div class="cascade-chip">
+      <span>Có máy lạnh</span>
+    </div>
+  </div>
+
+  <!-- Sources -->
+  <div class="sources-bar">
+    <span class="source-pill active">Tất cả (28)</span>
+    <span class="source-pill">Chợ Tốt (14)</span>
+    <span class="source-pill">Batdongsan (8)</span>
+    <span class="source-pill">Phongtro123 (6)</span>
+  </div>
+
+  <!-- Feed -->
+  <div class="scroll-feed">
+    <!-- Card 1 -->
+    <div class="mobile-card">
+      <div class="card-media">
+        <svg width="358" height="160" viewBox="0 0 358 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="358" height="160" fill="#e2e8f0"/>
+          <rect x="40" y="50" width="160" height="80" rx="6" fill="#3b82f6" opacity="0.85"/>
+          <rect x="55" y="35" width="45" height="30" rx="3" fill="#60a5fa"/>
+          <rect x="110" y="35" width="45" height="30" rx="3" fill="#93c5fd"/>
+          <rect x="240" y="40" width="80" height="90" rx="4" fill="#cbd5e1"/>
+        </svg>
+        <div class="source-badge-mobile">Chợ Tốt Nhà</div>
+      </div>
+      <div class="card-info">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <span class="price-tag">4.200.000 đ/tháng</span>
+          <span style="font-size:12px; color:#78716c;">25 m²</span>
+        </div>
+        <div class="room-title-m">Phòng trọ ban công full nội thất cạnh ĐH Bách Khoa</div>
+        <div class="room-address-m">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path></svg>
+          Lý Thường Kiệt, P.14, Q.10
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="mobile-card">
+      <div class="card-media">
+        <svg width="358" height="160" viewBox="0 0 358 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="358" height="160" fill="#f1f5f9"/>
+          <rect x="50" y="60" width="140" height="70" rx="6" fill="#10b981" opacity="0.85"/>
+          <rect x="65" y="45" width="40" height="25" rx="3" fill="#34d399"/>
+          <rect x="220" y="30" width="80" height="80" rx="4" fill="#93c5fd" opacity="0.5"/>
+        </svg>
+        <div class="source-badge-mobile" style="color:#059669;">Chính chủ</div>
+      </div>
+      <div class="card-info">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <span class="price-tag">3.500.000 đ/tháng</span>
+          <span style="font-size:12px; color:#78716c;">20 m²</span>
+        </div>
+        <div class="room-title-m">Căn hộ dịch vụ tiện nghi, khóa thẻ từ, giờ giấc tự do</div>
+        <div class="room-address-m">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path></svg>
+          Tô Hiến Thành, P.14, Q.10
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+      <span>Khám phá</span>
+    </div>
+    <div class="nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon></svg>
+      <span>Bản đồ</span>
+    </div>
+    <div class="nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+      <span>Đăng tin</span>
+    </div>
+    <div class="nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+      <span>Đã lưu</span>
+    </div>
+    <div class="nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      <span>Cá nhân</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

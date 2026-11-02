@@ -49,6 +49,9 @@ uploads/
 *.sqlite
 *.sqlite3
 
+# Artifact server files
+.artifact-server.json
+
 # IDE
 .vscode/
 .idea/
