@@ -339,13 +339,34 @@ const INITIAL_PRICES: ServicePrice[] = [
   },
 ];
 
+const safeGetItem = (key: string): string | null => {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+const safeSetItem = (key: string, value: string): void => {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {
+    // ignore
+  }
+};
+
 const DEFAULT_FILTER: FilterState = {
   search: "",
   priceMin: 0,
   priceMax: 15000000,
   areaMin: 0,
   areaMax: 100,
-  city: typeof window !== "undefined" ? localStorage.getItem("sr_city") || "TP. Hồ Chí Minh" : "TP. Hồ Chí Minh",
+  city: safeGetItem("sr_city") || "TP. Hồ Chí Minh",
   district: "Tất cả",
   amenities: [],
   status: "available",
@@ -2462,18 +2483,18 @@ export default function App() {
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [favorites, setFavorites] = useState<Set<number | string>>(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem("sr_favorites") || "[]"));
+      return new Set(JSON.parse(safeGetItem("sr_favorites") || "[]"));
     } catch {
       return new Set();
     }
   });
   const [favoriteNotice, setFavoriteNotice] = useState("");
   const [selectedCity, setSelectedCity] = useState<string>(() => {
-    return localStorage.getItem("sr_city") || "TP. Hồ Chí Minh";
+    return safeGetItem("sr_city") || "TP. Hồ Chí Minh";
   });
   const [showCityModal, setShowCityModal] = useState(false);
   const [darkMode, setDarkMode] = useState(
-    () => localStorage.getItem("sr_dark") === "1",
+    () => safeGetItem("sr_dark") === "1",
   );
   const [rooms, setRooms] = useState<Room[]>(() => EXTERNAL_MOCK_ROOMS);
   const [demands, setDemands] = useState<Demand[]>([]);
@@ -2583,12 +2604,12 @@ export default function App() {
   // Dark mode
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
-    localStorage.setItem("sr_dark", darkMode ? "1" : "0");
+    safeSetItem("sr_dark", darkMode ? "1" : "0");
   }, [darkMode]);
 
   // Persist favorites
   useEffect(() => {
-    localStorage.setItem("sr_favorites", JSON.stringify([...favorites]));
+    safeSetItem("sr_favorites", JSON.stringify([...favorites]));
   }, [favorites]);
 
   useEffect(() => {
@@ -2658,7 +2679,7 @@ export default function App() {
   useEffect(() => {
     if (filters.city && filters.city !== selectedCity) {
       setSelectedCity(filters.city);
-      localStorage.setItem("sr_city", filters.city);
+      safeSetItem("sr_city", filters.city);
     }
   }, [filters.city]);
 
@@ -2959,6 +2980,28 @@ export default function App() {
     });
   }, [filteredRooms, distances, sortOption]);
 
+  const currentCityRooms = useMemo(() => {
+    return [...rooms]
+      .filter((r) => isRoomInCity(r, selectedCity))
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }, [rooms, selectedCity]);
+
+  const featuredRooms = useMemo(() => {
+    return currentCityRooms.filter(
+      (r) => (r.isFeatured || r.isNew || r.source === "nhatot" || r.source === "phongtro123") && r.status === "available",
+    );
+  }, [currentCityRooms]);
+
+  const newRooms = useMemo(() => {
+    return currentCityRooms.filter((r) => r.isNew || r.source === "nhatot" || r.source === "phongtro123");
+  }, [currentCityRooms]);
+
+  const cheapRooms = useMemo(() => {
+    return currentCityRooms.filter(
+      (r) => r.isCheap && r.status === "available",
+    );
+  }, [currentCityRooms]);
+
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -3205,7 +3248,7 @@ const goHome = () => {
 
                   if (detected && detected !== selectedCity) {
                     setSelectedCity(detected);
-                    localStorage.setItem("sr_city", detected);
+                    safeSetItem("sr_city", detected);
                     updateFilter({
                       search: val,
                       city: detected,
@@ -3433,28 +3476,6 @@ const goHome = () => {
 
   // ─── HOME ────────────────────────────────────────────
   const HomePage = () => {
-    const currentCityRooms = useMemo(() => {
-      return [...rooms]
-        .filter((r) => isRoomInCity(r, selectedCity))
-        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    }, [rooms, selectedCity]);
-
-    const featuredRooms = useMemo(() => {
-      return currentCityRooms.filter(
-        (r) => (r.isFeatured || r.isNew || r.source === "nhatot" || r.source === "phongtro123") && r.status === "available",
-      );
-    }, [currentCityRooms]);
-
-    const newRooms = useMemo(() => {
-      return currentCityRooms.filter((r) => r.isNew || r.source === "nhatot" || r.source === "phongtro123");
-    }, [currentCityRooms]);
-
-    const cheapRooms = useMemo(() => {
-      return currentCityRooms.filter(
-        (r) => r.isCheap && r.status === "available",
-      );
-    }, [currentCityRooms]);
-
     const nearRooms = userLocation
       ? [...currentCityRooms]
           .sort(
@@ -4512,7 +4533,7 @@ const goHome = () => {
         selectedCity={selectedCity}
         onSelectCity={(cityName) => {
           setSelectedCity(cityName);
-          localStorage.setItem("sr_city", cityName);
+          safeSetItem("sr_city", cityName);
           updateFilter({
             city: cityName,
             district: "Tất cả",

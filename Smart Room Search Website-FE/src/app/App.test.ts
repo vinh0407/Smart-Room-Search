@@ -110,4 +110,31 @@ describe('Locations & Filtering features', () => {
       );
     }).not.toThrow();
   });
+
+  it('can render App with initialEntries /rooms/134958480 without hook mismatch or error', async () => {
+    const { renderToString } = await import('react-dom/server');
+    const React = await import('react');
+    const { MemoryRouter } = await import('react-router');
+    const App = (await import('./App')).default;
+
+    expect(() => {
+      renderToString(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: ['/rooms/134958480'] },
+          React.createElement(App)
+        )
+      );
+    }).not.toThrow();
+
+    expect(() => {
+      renderToString(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: ['/'] },
+          React.createElement(App)
+        )
+      );
+    }).not.toThrow();
+  });
 });
