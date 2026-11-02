@@ -2531,7 +2531,20 @@ export default function App() {
   };
 
   const fetchLiveChoTotRooms = async (cityName: string): Promise<Room[]> => {
-    // 1. Thử gọi trực tiếp relative endpoint /api/rooms/live (Vercel Serverless Function hoặc Vite dev proxy)
+    // 1. Thử gọi trực tiếp Vercel Edge Serverless Function /api/live
+    try {
+      const vRes = await fetch(`/api/live?city=${encodeURIComponent(cityName)}&limit=50`, {
+        headers: { Accept: "application/json" }
+      });
+      if (vRes.ok) {
+        const json = await vRes.json();
+        if (Array.isArray(json) && json.length > 0) {
+          return json.map(mapApiRoomToRoom);
+        }
+      }
+    } catch {}
+
+    // 2. Thử gọi trực tiếp relative endpoint /api/rooms/live
     try {
       const vRes = await fetch(`/api/rooms/live?city=${encodeURIComponent(cityName)}&limit=50`, {
         headers: { Accept: "application/json" }
@@ -2544,24 +2557,11 @@ export default function App() {
       }
     } catch {}
 
-    // 2. Thử gọi qua endpoint API backend
+    // 3. Thử gọi qua endpoint API backend
     try {
       const res = await api.get("/rooms/live", { params: { city: cityName, limit: 50 }, timeout: 6000 });
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         return res.data.map(mapApiRoomToRoom);
-      }
-    } catch {}
-
-    // 3. Fallback trực tiếp qua domain Vercel chính thức (dành cho client/mobile/dev)
-    try {
-      const vProd = await fetch(`https://smart-room-search.vercel.app/api/rooms/live?city=${encodeURIComponent(cityName)}&limit=50`, {
-        headers: { Accept: "application/json" }
-      });
-      if (vProd.ok) {
-        const json = await vProd.json();
-        if (Array.isArray(json) && json.length > 0) {
-          return json.map(mapApiRoomToRoom);
-        }
       }
     } catch {}
 
