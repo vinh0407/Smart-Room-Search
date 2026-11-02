@@ -149,7 +149,7 @@ async function fetchFromPhongTro123(cityName, citySlug, defCoords) {
         zaloLink: `https://zalo.me/${phone.replace(/[^0-9]/g, '')}`,
         views: 150 + (id % 200),
         contacts: 10 + (id % 30),
-        isFeatured: idx < 3,
+        isFeatured: true,
         isNew: true,
         isCheap: price <= 3000000,
         rating: 4.8,

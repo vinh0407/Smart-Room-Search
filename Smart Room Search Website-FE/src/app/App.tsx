@@ -633,6 +633,56 @@ function RoomCard({
             <RatingStars rating={room.rating} />
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Eye size={10} /> {room.views}</span>
           </div>
+
+          {/* Nút hành động trực tiếp: Vào Chợ Tốt */}
+          <div className="mt-2 flex items-center justify-end gap-1.5 pt-1">
+            {room.source === "nhatot" ? (
+              <a
+                href={room.externalUrl || `https://www.nhatot.com/${room.id}.htm`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
+                title="Mở bài đăng trực tiếp trên Chợ Tốt Nhà"
+              >
+                <ExternalLink size={10} /> Vào Chợ Tốt
+              </a>
+            ) : room.source === "phongtro123" ? (
+              <div className="flex items-center gap-1.5">
+                <a
+                  href={room.externalUrl || "https://phongtro123.com"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20 px-2 py-1 text-[11px] font-bold text-teal-700 dark:text-teal-400 transition-colors shadow-sm"
+                  title="Mở bài đăng gốc trên Phongtro123"
+                >
+                  <ExternalLink size={10} /> Bài gốc
+                </a>
+                <a
+                  href={`https://www.chotot.com/tags/thue-phong-tro?q=${encodeURIComponent(room.district || room.city || '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
+                  title="Tìm phòng tương tự trên Chợ Tốt Nhà"
+                >
+                  <ExternalLink size={10} /> Vào Chợ Tốt
+                </a>
+              </div>
+            ) : (
+              <a
+                href={`https://www.chotot.com/tags/thue-phong-tro?q=${encodeURIComponent(room.district || room.city || '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 transition-colors shadow-sm"
+                title="Xem phòng khu vực này trên Chợ Tốt Nhà"
+              >
+                <ExternalLink size={10} /> Vào Chợ Tốt
+              </a>
+            )}
+          </div>
         </div>
       </a>
 
@@ -1893,17 +1943,40 @@ function DetailPage({
                         Chat Zalo
                       </a>
                     ) : null}
-                    {room.externalUrl ? (
+                    {room.source === 'nhatot' && room.externalUrl ? (
                       <a
                         href={room.externalUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-orange-700"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-amber-700"
                       >
                         <ExternalLink size={16} />
-                        Mở bài đăng gốc ({room.source === 'nhatot' ? 'Chợ Tốt Nhà' : room.source === 'batdongsan' ? 'Batdongsan.com.vn' : room.source === 'phongtro123' ? 'Phongtro123.com' : 'Trang nguồn'})
+                        Vào Chợ Tốt Nhà (Mở bài đăng gốc)
                       </a>
-                    ) : null}
+                    ) : (
+                      <>
+                        {room.externalUrl ? (
+                          <a
+                            href={room.externalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-teal-700"
+                          >
+                            <ExternalLink size={16} />
+                            Mở bài đăng gốc ({room.source === 'phongtro123' ? 'Phongtro123.com' : 'Trang nguồn'})
+                          </a>
+                        ) : null}
+                        <a
+                          href={`https://www.chotot.com/tags/thue-phong-tro?q=${encodeURIComponent(room.district || room.city || '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/50 bg-amber-500/10 py-3 text-sm font-bold text-amber-700 dark:text-amber-400 shadow-sm transition-all hover:bg-amber-500/20"
+                        >
+                          <ExternalLink size={16} />
+                          Vào Chợ Tốt Nhà (Tìm phòng tại {room.district || room.city})
+                        </a>
+                      </>
+                    )}
                     {!room.phone && !room.zaloLink && (
                       <p className="rounded-lg bg-muted p-3 text-center text-xs text-muted-foreground">
                         Phòng chưa có thông tin liên hệ.
@@ -3199,6 +3272,18 @@ const goHome = () => {
               <ChevronDown size={11} className="text-primary/70 shrink-0" />
             </button>
 
+            {/* Vào Chợ Tốt */}
+            <a
+              href="https://www.chotot.com/tags/thue-phong-tro"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 transition-all shadow-sm"
+              title="Vào cổng Chợ Tốt Nhà trực tiếp"
+            >
+              <ExternalLink size={13} className="shrink-0" />
+              <span>Vào Chợ Tốt</span>
+            </a>
+
             {/* Tải App APK */}
             <a
               href="https://github.com/vinh0407/Smart-Room-Search/raw/main/APK/SmartRoomSearch-v2.0.apk"
@@ -3335,14 +3420,28 @@ const goHome = () => {
 
   // ─── HOME ────────────────────────────────────────────
   const HomePage = () => {
-    const currentCityRooms = rooms.filter((r) => isRoomInCity(r, selectedCity));
-    const featuredRooms = currentCityRooms.filter(
-      (r) => r.isFeatured && r.status === "available",
-    );
-    const newRooms = currentCityRooms.filter((r) => r.isNew);
-    const cheapRooms = currentCityRooms.filter(
-      (r) => r.isCheap && r.status === "available",
-    );
+    const currentCityRooms = useMemo(() => {
+      return [...rooms]
+        .filter((r) => isRoomInCity(r, selectedCity))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    }, [rooms, selectedCity]);
+
+    const featuredRooms = useMemo(() => {
+      return currentCityRooms.filter(
+        (r) => (r.isFeatured || r.isNew || r.source === "nhatot" || r.source === "phongtro123") && r.status === "available",
+      );
+    }, [currentCityRooms]);
+
+    const newRooms = useMemo(() => {
+      return currentCityRooms.filter((r) => r.isNew || r.source === "nhatot" || r.source === "phongtro123");
+    }, [currentCityRooms]);
+
+    const cheapRooms = useMemo(() => {
+      return currentCityRooms.filter(
+        (r) => r.isCheap && r.status === "available",
+      );
+    }, [currentCityRooms]);
+
     const nearRooms = userLocation
       ? [...currentCityRooms]
           .sort(
@@ -3392,13 +3491,24 @@ const goHome = () => {
                 <p className="mt-2 text-sm sm:text-base text-white/80 max-w-md">
                   {banners[heroSlide].subtitle}
                 </p>
-                <button
-                  onClick={() => navigate("/rooms")}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white hover:brightness-95 transition-all shadow-lg"
-                >
-                  {banners[heroSlide].cta}{" "}
-                  <ArrowRight size={15} />
-                </button>
+                <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={() => navigate("/rooms")}
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white hover:brightness-95 transition-all shadow-lg"
+                  >
+                    {banners[heroSlide].cta}{" "}
+                    <ArrowRight size={15} />
+                  </button>
+                  <a
+                    href="https://www.chotot.com/tags/thue-phong-tro"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/40 bg-black/40 hover:bg-black/60 backdrop-blur-md px-4 py-2.5 text-sm font-bold text-white transition-all shadow-lg"
+                  >
+                    <ExternalLink size={15} />
+                    Vào Chợ Tốt Nhà
+                  </a>
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -3532,34 +3642,61 @@ const goHome = () => {
             </div>
           </div>
 
-          {/* External Partners Section */}
-          {currentCityRooms.some((r) => r.source && r.source !== "local") && (
-            <Section
-              title={`Tin đăng từ Chợ Tốt Nhà, Batdongsan & Phongtro123 (${selectedCity.replace("TP. ", "")})`}
-              icon={<ExternalLink size={16} className="text-orange-500" />}
-              onMore={() => {
-                updateFilter({ source: "external", city: selectedCity, district: "Tất cả", ward: "Tất cả" });
-                navigate("/rooms");
-              }}
-            >
-              <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
-                {currentCityRooms
-                  .filter((r) => r.source && r.source !== "local")
-                  .slice(0, 8)
-                  .map((r) => (
-                    <div key={r.id} className="w-72 shrink-0">
-                      <MemoRoomCard
-                        room={r}
-                        onView={viewRoom}
-                        onToggleFavorite={toggleFavorite}
-                        isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
-                        distance={distances[r.id]}
-                      />
-                    </div>
-                  ))}
+          {/* Tin đăng mới cập nhật thời gian thực (Live Update) */}
+          <section className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
+                  Phòng trọ mới cập nhật tại {selectedCity}
+                </h2>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Update {lastSyncTime ? `(${lastSyncTime})` : ''}
+                </span>
               </div>
-            </Section>
-          )}
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://www.chotot.com/tags/thue-phong-tro"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 transition-all shadow-sm"
+                  title="Mở cổng Chợ Tốt Nhà trực tiếp"
+                >
+                  <ExternalLink size={13} />
+                  <span>Vào Chợ Tốt</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateFilter({ city: selectedCity, district: "Tất cả", ward: "Tất cả" });
+                    navigate("/rooms");
+                  }}
+                  className="inline-flex items-center gap-1 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-white hover:brightness-95 transition-all shadow-sm"
+                >
+                  <span>Xem tất cả ({currentCityRooms.length})</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Grid các bài đăng mới nhất trực tiếp trên Trang Chủ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {currentCityRooms.slice(0, 8).map((r) => (
+                <MemoRoomCard
+                  key={r.id}
+                  room={r}
+                  onView={viewRoom}
+                  onToggleFavorite={toggleFavorite}
+                  isFavorite={favorites.has(r.id) || favorites.has(Number(r.id)) || favorites.has(String(r.id))}
+                  distance={distances[r.id]}
+                />
+              ))}
+            </div>
+          </section>
 
           {/* Featured rooms */}
           {featuredRooms.length > 0 && (
@@ -3712,10 +3849,10 @@ const goHome = () => {
               navigate("/rooms");
             }}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {currentCityRooms
                 .filter((r) => r.status === "available")
-                .slice(0, 6)
+                .slice(0, 12)
                 .map((r) => (
                   <MemoRoomCard
                     key={r.id}
